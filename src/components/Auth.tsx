@@ -1,17 +1,28 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/src/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
+import { useAuth } from '@/src/contexts/AuthContext';
 
 export function Auth() {
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
+  const navigate = useNavigate();
+  const { user } = useAuth();
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (user) {
+      navigate('/');
+    }
+  }, [user, navigate]);
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,6 +69,7 @@ export function Auth() {
       });
       if (error) throw error;
       toast.success('Signed in successfully!');
+      navigate('/');
     } catch (error: any) {
       toast.error(error.message);
     } finally {

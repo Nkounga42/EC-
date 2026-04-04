@@ -18,16 +18,10 @@ export function AnonymousMessageForm({ recipientId, recipientUsername }: { recip
 
     setLoading(true);
     try {
-      // Get IP address (mocked for now, in a real app you'd get this from the server)
-      const ipResponse = await fetch('https://api.ipify.org?format=json');
-      const ipData = await ipResponse.json();
-      const ip = ipData.ip;
-
       const { error } = await supabase.from('anonymous_messages').insert({
         recipient_id: recipientId,
         content,
         sender_id: user?.id || null, // Track sender if logged in, but keep it hidden from recipient
-        sender_ip: ip,
         is_read: false,
       });
 

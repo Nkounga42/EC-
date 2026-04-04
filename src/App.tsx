@@ -9,6 +9,8 @@ import { AnonymousInbox } from './pages/AnonymousInbox';
 import { NGLPage } from './pages/NGLPage';
 import { Chat } from './pages/Chat';
 import { Admin } from './pages/Admin';
+import { BlogDetail } from './pages/BlogDetail';
+import { CreateBlog } from './pages/CreateBlog';
 import { Toaster } from 'sonner';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
@@ -30,6 +32,8 @@ function AppContent() {
           <Route path="/auth" element={<Auth />} />
           <Route path="/profile/:username" element={<Profile />} />
           <Route path="/ngl/:username" element={<NGLPage />} />
+          <Route path="/blog/:postId" element={<BlogDetail />} />
+          <Route path="/create-blog" element={<PrivateRoute><CreateBlog /></PrivateRoute>} />
           
           {/* Private Routes */}
           <Route path="/inbox" element={
@@ -37,7 +41,7 @@ function AppContent() {
               <AnonymousInbox />
             </PrivateRoute>
           } />
-          <Route path="/chat" element={
+          <Route path="/chat/:roomId?" element={
             <PrivateRoute>
               <Chat />
             </PrivateRoute>

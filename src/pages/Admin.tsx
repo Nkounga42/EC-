@@ -147,6 +147,7 @@ export function Admin() {
                     </div>
                   </CardHeader>
                   <CardContent>
+                    {post.title && <h4 className="font-bold mb-1">{post.title}</h4>}
                     <p className="text-sm line-clamp-3">{post.content}</p>
                   </CardContent>
                 </Card>
@@ -168,7 +169,6 @@ export function Admin() {
                         <th className="px-4 py-3">Recipient</th>
                         <th className="px-4 py-3">Content</th>
                         <th className="px-4 py-3">Sender ID</th>
-                        <th className="px-4 py-3">Sender IP</th>
                         <th className="px-4 py-3">Date</th>
                       </tr>
                     </thead>
@@ -180,7 +180,6 @@ export function Admin() {
                           </td>
                           <td className="px-4 py-3 max-w-xs truncate">{msg.content}</td>
                           <td className="px-4 py-3 font-mono text-[10px]">{msg.sender_id || 'Anonymous'}</td>
-                          <td className="px-4 py-3 text-xs">{msg.sender_ip || 'Unknown'}</td>
                           <td className="px-4 py-3">{format(new Date(msg.created_at), 'MMM d, HH:mm')}</td>
                         </tr>
                       ))}

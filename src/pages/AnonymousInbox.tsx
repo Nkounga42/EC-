@@ -1,16 +1,18 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/src/lib/supabase';
 import { useAuth } from '@/src/contexts/AuthContext';
 import { AnonymousMessage } from '@/src/types/database';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, Inbox, Trash2, Eye, EyeOff, ShieldAlert } from 'lucide-react';
+import { Loader2, Inbox, Trash2, Eye, MessageCircle, ShieldAlert, Share2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 
 export function AnonymousInbox() {
   const { profile } = useAuth();
+  const navigate = useNavigate();
   const [messages, setMessages] = useState<AnonymousMessage[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -113,7 +115,6 @@ export function AnonymousInbox() {
                   <div className="mt-4 p-3 bg-destructive/10 rounded-lg border border-destructive/20 text-xs space-y-1">
                     <p className="font-bold text-destructive">ADMIN TRACEABILITY:</p>
                     <p><span className="font-semibold">Sender ID:</span> {message.sender_id || 'Anonymous'}</p>
-                    <p><span className="font-semibold">Sender IP:</span> {message.sender_ip || 'Unknown'}</p>
                   </div>
                 )}
               </CardContent>
@@ -123,6 +124,18 @@ export function AnonymousInbox() {
                     <Eye className="w-4 h-4 mr-2" /> Mark as Read
                   </Button>
                 )}
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="text-primary hover:text-primary hover:bg-primary/10"
+                  onClick={() => {
+                    // Navigate to home with a pre-filled post content
+                    const replyText = `Replying to an anonymous message: "${message.content}"\n\nMy reply: `;
+                    navigate('/', { state: { initialContent: replyText } });
+                  }}
+                >
+                  <MessageCircle className="w-4 h-4 mr-2" /> Reply
+                </Button>
                 <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => deleteMessage(message.id)}>
                   <Trash2 className="w-4 h-4 mr-2" /> Delete
                 </Button>
@@ -142,8 +155,20 @@ export function AnonymousInbox() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="bg-muted p-4 rounded-lg font-mono text-sm break-all select-all cursor-pointer">
-              {window.location.origin}/ngl/{profile.username}
+            <div className="flex items-center gap-2">
+              <div className="bg-muted p-4 rounded-lg font-mono text-sm break-all select-all cursor-pointer flex-1">
+                {window.location.origin}/#/ngl/{profile.username}
+              </div>
+              <Button 
+                variant="outline" 
+                size="icon" 
+                onClick={() => {
+                  navigator.clipboard.writeText(`${window.location.origin}/#/ngl/${profile.username}`);
+                  toast.success('Link copied to clipboard!');
+                }}
+              >
+                <Share2 className="w-4 h-4" />
+              </Button>
             </div>
           </CardContent>
         </Card>

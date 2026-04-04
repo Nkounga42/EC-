@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/src/lib/supabase';
 import { useAuth } from '@/src/contexts/AuthContext';
 import { ChatRoom, Message, UserProfile } from '@/src/types/database';
@@ -8,14 +8,20 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2, Send, Plus, Search, Users, User as UserIcon, MessageSquare } from 'lucide-react';
+import { Loader2, Send, Plus, Search, Users, User as UserIcon, MessageSquare, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
 
+interface RoomWithParticipants extends ChatRoom {
+  participants?: { user: UserProfile }[];
+}
+
 export function Chat() {
+  const { roomId } = useParams<{ roomId: string }>();
+  const navigate = useNavigate();
   const { profile } = useAuth();
-  const [rooms, setRooms] = useState<ChatRoom[]>([]);
-  const [selectedRoom, setSelectedRoom] = useState<ChatRoom | null>(null);
+  const [rooms, setRooms] = useState<RoomWithParticipants[]>([]);
+  const [selectedRoom, setSelectedRoom] = useState<RoomWithParticipants | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
@@ -25,15 +31,42 @@ export function Chat() {
   const fetchRooms = async () => {
     if (!profile) return;
     try {
-      const { data, error } = await supabase
+      // Fetch rooms where the user is a participant
+      const { data: participantData, error: partError } = await supabase
         .from('chat_participants')
-        .select(`
-          room:chat_rooms(*)
-        `)
+        .select('room_id')
         .eq('user_id', profile.id);
 
+      if (partError) throw partError;
+
+      const roomIds = participantData?.map(p => p.room_id) || [];
+
+      if (roomIds.length === 0) {
+        setRooms([]);
+        setLoading(false);
+        return;
+      }
+
+      // Fetch the rooms and ALL participants for those rooms
+      const { data, error } = await supabase
+        .from('chat_rooms')
+        .select(`
+          *,
+          participants:chat_participants(
+            user:users(*)
+          )
+        `)
+        .in('id', roomIds)
+        .order('created_at', { ascending: false });
+
       if (error) throw error;
-      setRooms(data?.map(d => d.room) || []);
+      setRooms(data || []);
+
+      // If roomId is in URL, select that room
+      if (roomId) {
+        const room = data?.find(r => r.id === roomId);
+        if (room) setSelectedRoom(room);
+      }
     } catch (error: any) {
       toast.error(error.message);
     } finally {
@@ -41,7 +74,7 @@ export function Chat() {
     }
   };
 
-  const fetchMessages = async (roomId: string) => {
+  const fetchMessages = async (id: string) => {
     try {
       const { data, error } = await supabase
         .from('messages')
@@ -49,7 +82,7 @@ export function Chat() {
           *,
           sender:users(*)
         `)
-        .eq('room_id', roomId)
+        .eq('room_id', id)
         .order('created_at', { ascending: true });
 
       if (error) throw error;
@@ -62,6 +95,13 @@ export function Chat() {
   useEffect(() => {
     fetchRooms();
   }, [profile]);
+
+  useEffect(() => {
+    if (roomId && rooms.length > 0) {
+      const room = rooms.find(r => r.id === roomId);
+      if (room) setSelectedRoom(room);
+    }
+  }, [roomId, rooms]);
 
   useEffect(() => {
     if (selectedRoom) {
@@ -83,8 +123,12 @@ export function Chat() {
             .eq('id', payload.new.sender_id)
             .single();
           
-          const newMessage = { ...payload.new, sender: senderData } as Message;
-          setMessages(prev => [...prev, newMessage]);
+          const msg = { ...payload.new, sender: senderData } as Message;
+          setMessages(prev => {
+            // Avoid duplicates
+            if (prev.some(m => m.id === msg.id)) return prev;
+            return [...prev, msg];
+          });
         })
         .subscribe();
 
@@ -121,17 +165,34 @@ export function Chat() {
     }
   };
 
+  const getOtherParticipant = (room: RoomWithParticipants) => {
+    if (room.is_group) return null;
+    return room.participants?.find(p => p.user.id !== profile?.id)?.user || null;
+  };
+
+  const getRoomName = (room: RoomWithParticipants) => {
+    if (room.name) return room.name;
+    const other = getOtherParticipant(room);
+    return other ? other.username : 'Private Chat';
+  };
+
+  const getRoomImage = (room: RoomWithParticipants) => {
+    if (room.image_url) return room.image_url;
+    const other = getOtherParticipant(room);
+    return other ? other.avatar_url : '';
+  };
+
   if (!profile) return null;
 
   return (
     <div className="container mx-auto px-4 py-8 h-[calc(100vh-8rem)]">
       <div className="grid grid-cols-1 md:grid-cols-12 gap-4 h-full">
         {/* Rooms List */}
-        <Card className="md:col-span-4 lg:col-span-3 h-full flex flex-col overflow-hidden">
+        <Card className={`md:col-span-4 lg:col-span-3 h-full flex flex-col overflow-hidden ${selectedRoom ? 'hidden md:flex' : 'flex'}`}>
           <CardHeader className="p-4 border-b">
             <div className="flex items-center justify-between mb-4">
               <CardTitle className="text-xl font-bold">Chats</CardTitle>
-              <Button size="icon" variant="ghost" className="rounded-full">
+              <Button size="icon" variant="ghost" className="rounded-full" render={<Link to="/" />} nativeButton={false}>
                 <Plus className="w-5 h-5" />
               </Button>
             </div>
@@ -147,32 +208,38 @@ export function Chat() {
                   <Loader2 className="w-6 h-6 animate-spin text-primary" />
                 </div>
               ) : rooms.length > 0 ? (
-                rooms.map((room) => (
-                  <Button
-                    key={room.id}
-                    variant={selectedRoom?.id === room.id ? 'secondary' : 'ghost'}
-                    className="w-full justify-start h-16 gap-3 px-3"
-                    onClick={() => setSelectedRoom(room)}
-                  >
-                    <Avatar className="h-10 w-10">
-                      <AvatarImage src={room.image_url || ''} />
-                      <AvatarFallback>
-                        {room.is_group ? <Users className="w-5 h-5" /> : <UserIcon className="w-5 h-5" />}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex flex-col items-start overflow-hidden">
-                      <span className="font-semibold text-sm truncate w-full">
-                        {room.name || 'Private Chat'}
-                      </span>
-                      <span className="text-xs text-muted-foreground truncate w-full">
-                        {room.is_group ? 'Group Chat' : '1-on-1'}
-                      </span>
-                    </div>
-                  </Button>
-                ))
+                rooms.map((room) => {
+                  const other = getOtherParticipant(room);
+                  return (
+                    <Button
+                      key={room.id}
+                      variant={selectedRoom?.id === room.id ? 'secondary' : 'ghost'}
+                      className="w-full justify-start h-16 gap-3 px-3"
+                      onClick={() => {
+                        setSelectedRoom(room);
+                        navigate(`/chat/${room.id}`);
+                      }}
+                    >
+                      <Avatar className="h-10 w-10">
+                        <AvatarImage src={getRoomImage(room) || ''} />
+                        <AvatarFallback>
+                          {room.is_group ? <Users className="w-5 h-5" /> : <UserIcon className="w-5 h-5" />}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex flex-col items-start overflow-hidden">
+                        <span className="font-semibold text-sm truncate w-full">
+                          {getRoomName(room)}
+                        </span>
+                        <span className="text-xs text-muted-foreground truncate w-full">
+                          {room.is_group ? 'Group Chat' : `@${other?.username || 'user'}`}
+                        </span>
+                      </div>
+                    </Button>
+                  );
+                })
               ) : (
                 <div className="text-center py-8 px-4">
-                  <p className="text-sm text-muted-foreground">No chats yet. Start a conversation!</p>
+                  <p className="text-sm text-muted-foreground">No chats yet. Visit a profile to start a conversation!</p>
                 </div>
               )}
             </div>
@@ -180,18 +247,24 @@ export function Chat() {
         </Card>
 
         {/* Chat Window */}
-        <Card className="md:col-span-8 lg:col-span-9 h-full flex flex-col overflow-hidden">
+        <Card className={`md:col-span-8 lg:col-span-9 h-full flex flex-col overflow-hidden ${!selectedRoom ? 'hidden md:flex' : 'flex'}`}>
           {selectedRoom ? (
             <>
               <CardHeader className="p-4 border-b flex flex-row items-center gap-4">
+                <Button variant="ghost" size="icon" className="md:hidden" onClick={() => {
+                  setSelectedRoom(null);
+                  navigate('/chat');
+                }}>
+                  <ArrowLeft className="w-5 h-5" />
+                </Button>
                 <Avatar className="h-10 w-10">
-                  <AvatarImage src={selectedRoom.image_url || ''} />
+                  <AvatarImage src={getRoomImage(selectedRoom) || ''} />
                   <AvatarFallback>
                     {selectedRoom.is_group ? <Users className="w-5 h-5" /> : <UserIcon className="w-5 h-5" />}
                   </AvatarFallback>
                 </Avatar>
-                <div>
-                  <CardTitle className="text-lg font-bold">{selectedRoom.name || 'Private Chat'}</CardTitle>
+                <div className="flex-1 overflow-hidden">
+                  <CardTitle className="text-lg font-bold truncate">{getRoomName(selectedRoom)}</CardTitle>
                   <p className="text-xs text-green-500 font-medium">Online</p>
                 </div>
               </CardHeader>
@@ -250,7 +323,7 @@ export function Chat() {
               </div>
               <h3 className="text-xl font-bold mb-2">Select a chat to start messaging</h3>
               <p className="text-muted-foreground max-w-sm">
-                Choose a conversation from the left sidebar or start a new one with your friends.
+                Choose a conversation from the left sidebar or visit a user's profile to start a new chat.
               </p>
             </div>
           )}

@@ -11,7 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Home, MessageSquare, User, Shield, LogOut, Send } from 'lucide-react';
+import { Home, MessageSquare, User, Shield, LogOut, Send, FileText } from 'lucide-react';
 
 export function Navbar() {
   const { profile, signOut } = useAuth();
@@ -35,6 +35,9 @@ export function Navbar() {
             </Link>
             <Link to="/chat" className="flex items-center gap-1 hover:text-primary transition-colors">
               <MessageSquare className="w-4 h-4" /> Chat
+            </Link>
+            <Link to="/create-blog" className="flex items-center gap-1 hover:text-primary transition-colors">
+              <FileText className="w-4 h-4" /> Create Blog
             </Link>
           </div>
         </div>

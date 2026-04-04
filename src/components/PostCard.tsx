@@ -16,6 +16,11 @@ export function PostCard({ post }: { post: Post, key?: React.Key }) {
   const [isLiked, setIsLiked] = useState(post.is_liked || false);
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    setLikesCount(post.likes_count || 0);
+    setIsLiked(post.is_liked || false);
+  }, [post.likes_count, post.is_liked]);
+
   const handleLike = async () => {
     if (!profile) {
       toast.error('Please sign in to like posts');
@@ -73,17 +78,50 @@ export function PostCard({ post }: { post: Post, key?: React.Key }) {
         </Button>
       </CardHeader>
       <CardContent className="pb-3">
+        {post.post_type === 'blog' && (post.cover_image || post.media_url) && (
+          <div className="mb-3 rounded-lg overflow-hidden border">
+            <img 
+              src={post.cover_image || post.media_url || ''} 
+              alt="Blog cover" 
+              className="w-full h-48 object-cover hover:scale-105 transition-transform duration-500" 
+              referrerPolicy="no-referrer" 
+            />
+          </div>
+        )}
         {post.post_type === 'blog' ? (
-          <div className="prose prose-sm dark:prose-invert max-w-none">
-            <p className="whitespace-pre-wrap">{post.content}</p>
+          <div className="space-y-3">
+            {post.title && (
+              <Link to={`/blog/${post.id}`} className="block group">
+                <h3 className="text-xl font-bold tracking-tight group-hover:text-primary transition-colors">
+                  {post.title}
+                </h3>
+              </Link>
+            )}
+            <div className="prose prose-sm dark:prose-invert max-w-none line-clamp-3">
+              <p className="whitespace-pre-wrap">{post.content}</p>
+            </div>
+            <Button variant="link" className="p-0 h-auto text-primary" render={<Link to={`/blog/${post.id}`} />} nativeButton={false}>
+              Read more...
+            </Button>
           </div>
         ) : (
-          <p className="text-base whitespace-pre-wrap">{post.content}</p>
-        )}
-        {post.media_url && (
-          <div className="mt-3 rounded-lg overflow-hidden border">
-            <img src={post.media_url} alt="Post media" className="w-full h-auto object-cover max-h-[500px]" referrerPolicy="no-referrer" />
-          </div>
+          <>
+            <div className={`rounded-lg p-4 ${post.background_color || ''} ${post.background_color && post.background_color !== 'bg-background' ? 'text-white' : 'text-foreground'}`}>
+              <p className={`text-base whitespace-pre-wrap ${post.font_family || ''}`}>
+                {post.content}
+              </p>
+            </div>
+            {(post.cover_image || post.media_url) && (
+              <div className="mt-3 rounded-lg overflow-hidden border">
+                <img 
+                  src={post.cover_image || post.media_url || ''} 
+                  alt="Post media" 
+                  className="w-full h-auto object-cover max-h-[500px]" 
+                  referrerPolicy="no-referrer" 
+                />
+              </div>
+            )}
+          </>
         )}
       </CardContent>
       <CardFooter className="border-t pt-2 flex items-center justify-between">

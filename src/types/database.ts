@@ -13,9 +13,13 @@ export interface UserProfile {
 export interface Post {
   id: string;
   author_id: string;
+  title?: string | null;
   content: string;
   post_type: 'status' | 'blog';
   media_url: string | null;
+  cover_image?: string | null;
+  font_family?: string | null;
+  background_color?: string | null;
   created_at: string;
   author?: UserProfile;
   likes_count?: number;
@@ -37,7 +41,6 @@ export interface AnonymousMessage {
   recipient_id: string;
   content: string;
   sender_id: string | null;
-  sender_ip: string | null;
   is_read: boolean;
   created_at: string;
 }

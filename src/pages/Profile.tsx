@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useNavigate, useParams, Link } from 'react-router-dom';
 import { supabase } from '@/src/lib/supabase';
 import { UserProfile, Post } from '@/src/types/database';
 import { PostCard } from '@/src/components/PostCard';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, Calendar, MapPin, Link as LinkIcon, Edit, MessageSquare } from 'lucide-react';
+import { Loader2, Calendar, MapPin, Link as LinkIcon, Edit, MessageSquare, MessageCircle } from 'lucide-react';
 import { format, isValid } from 'date-fns';
 import { useAuth } from '@/src/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -14,9 +14,11 @@ import { toast } from 'sonner';
 export function Profile() {
   const { username } = useParams<{ username: string }>();
   const { profile: currentUser } = useAuth();
+  const navigate = useNavigate();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
+  const [startingChat, setStartingChat] = useState(false);
 
   useEffect(() => {
     const fetchProfileData = async () => {
@@ -26,7 +28,7 @@ export function Profile() {
         const { data: userData, error: userError } = await supabase
           .from('users')
           .select('*')
-          .eq('username', username)
+          .ilike('username', username)
           .single();
 
         if (userError) throw userError;
@@ -43,7 +45,24 @@ export function Profile() {
           .order('created_at', { ascending: false });
 
         if (postsError) throw postsError;
-        setPosts(postsData || []);
+        
+        let postsWithLikes = postsData || [];
+        if (currentUser) {
+          const { data: userLikes } = await supabase
+            .from('likes')
+            .select('target_id')
+            .eq('user_id', currentUser.id)
+            .eq('target_type', 'post')
+            .in('target_id', postsWithLikes.map(p => p.id));
+          
+          const likedPostIds = new Set(userLikes?.map(l => l.target_id) || []);
+          postsWithLikes = postsWithLikes.map(p => ({
+            ...p,
+            is_liked: likedPostIds.has(p.id)
+          }));
+        }
+        
+        setPosts(postsWithLikes);
       } catch (error: any) {
         console.error('Error fetching profile:', error.message);
         toast.error('Could not load profile');
@@ -54,6 +73,68 @@ export function Profile() {
 
     fetchProfileData();
   }, [username]);
+
+  const startChat = async () => {
+    if (!currentUser || !profile) return;
+    setStartingChat(true);
+    try {
+      // 1. Check if a private room already exists between these two users
+      const { data: existingParticipants, error: findError } = await supabase
+        .from('chat_participants')
+        .select('room_id')
+        .eq('user_id', currentUser.id);
+
+      if (findError) throw findError;
+
+      const roomIds = existingParticipants?.map(p => p.room_id) || [];
+      
+      if (roomIds.length > 0) {
+        // Check if any of these rooms also have the target user as a participant
+        const { data: commonRooms, error: commonError } = await supabase
+          .from('chat_participants')
+          .select('room_id, room:chat_rooms(*)')
+          .in('room_id', roomIds)
+          .eq('user_id', profile.id);
+
+        if (commonError) throw commonError;
+
+        // Filter for non-group rooms
+        const privateRoom = commonRooms?.find(r => !(r.room as any).is_group);
+
+        if (privateRoom) {
+          // Room exists, navigate to it
+          navigate(`/chat/${privateRoom.room_id}`);
+          return;
+        }
+      }
+
+      // 2. Create a new room if none exists
+      const { data: newRoom, error: roomError } = await supabase
+        .from('chat_rooms')
+        .insert({ is_group: false })
+        .select()
+        .single();
+
+      if (roomError) throw roomError;
+
+      // 3. Add both participants
+      const { error: partError } = await supabase
+        .from('chat_participants')
+        .insert([
+          { room_id: newRoom.id, user_id: currentUser.id },
+          { room_id: newRoom.id, user_id: profile.id }
+        ]);
+
+      if (partError) throw partError;
+
+      navigate(`/chat/${newRoom.id}`);
+    } catch (error: any) {
+      console.error('Error starting chat:', error.message);
+      toast.error('Could not start chat');
+    } finally {
+      setStartingChat(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -106,6 +187,17 @@ export function Profile() {
               <Button render={<Link to={`/ngl/${profile.username}`} />} variant="default" className="gap-2 rounded-full px-6" nativeButton={false}>
                 <MessageSquare className="w-4 h-4" /> Send NGL
               </Button>
+              {!isOwnProfile && (
+                <Button 
+                  variant="secondary" 
+                  className="gap-2 rounded-full px-6"
+                  onClick={startChat}
+                  disabled={startingChat}
+                >
+                  {startingChat ? <Loader2 className="w-4 h-4 animate-spin" /> : <MessageCircle className="w-4 h-4" />}
+                  Chat
+                </Button>
+              )}
               {isOwnProfile && (
                 <Button variant="outline" className="gap-2 rounded-full">
                   <Edit className="w-4 h-4" /> Edit
