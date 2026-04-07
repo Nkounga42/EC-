@@ -8,6 +8,7 @@ export interface UserProfile {
   bio: string | null;
   role: Role;
   created_at: string;
+  last_seen_at?: string | null;
 }
 
 export interface Post {
@@ -52,6 +53,7 @@ export interface ChatRoom {
   is_group: boolean;
   created_at: string;
   last_message?: Message;
+  last_message_at?: string | null;
 }
 
 export interface Message {
@@ -59,8 +61,17 @@ export interface Message {
   room_id: string;
   sender_id: string;
   content: string;
+  media_url?: string | null;
+  media_type?: string | null;
+  reply_to_id?: string | null;
+  is_pinned?: boolean;
+  pinned_at?: string | null;
+  pinned_by?: string | null;
+  is_read?: boolean;
+  read_at?: string | null;
   created_at: string;
   sender?: UserProfile;
+  reply_to?: Message;
 }
 
 export interface ChatParticipant {

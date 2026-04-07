@@ -54,6 +54,12 @@ export function PostCard({ post }: { post: Post, key?: React.Key }) {
     }
   };
 
+  const handleShare = () => {
+    const postUrl = `${window.location.origin}/#/blog/${post.id}`;
+    navigator.clipboard.writeText(postUrl);
+    toast.success('Post link copied to clipboard!');
+  };
+
   return (
     <Card className="mb-4 overflow-hidden">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -141,7 +147,7 @@ export function PostCard({ post }: { post: Post, key?: React.Key }) {
             <span className="text-xs font-medium">{post.comments_count || 0}</span>
           </Button>
         </div>
-        <Button variant="ghost" size="sm" className="gap-2">
+        <Button variant="ghost" size="sm" className="gap-2" onClick={handleShare}>
           <Share2 className="w-4 h-4" />
           <span className="text-xs font-medium text-muted-foreground">Share</span>
         </Button>

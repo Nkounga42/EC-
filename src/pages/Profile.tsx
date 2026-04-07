@@ -6,7 +6,7 @@ import { PostCard } from '@/src/components/PostCard';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, Calendar, MapPin, Link as LinkIcon, Edit, MessageSquare, MessageCircle } from 'lucide-react';
+import { Loader2, Calendar, MapPin, Link as LinkIcon, Edit, MessageSquare, MessageCircle, Copy, Check } from 'lucide-react';
 import { format, isValid } from 'date-fns';
 import { useAuth } from '@/src/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -19,6 +19,16 @@ export function Profile() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [startingChat, setStartingChat] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const nglUrl = `${window.location.origin}/#/ngl/${username}`;
+
+  const copyNglLink = () => {
+    navigator.clipboard.writeText(nglUrl);
+    setCopied(true);
+    toast.success('NGL link copied to clipboard!');
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   useEffect(() => {
     const fetchProfileData = async () => {
@@ -117,15 +127,18 @@ export function Profile() {
 
       if (roomError) throw roomError;
 
-      // 3. Add both participants
-      const { error: partError } = await supabase
+      // 3. Add both participants sequentially to avoid RLS issues
+      const { error: selfPartError } = await supabase
         .from('chat_participants')
-        .insert([
-          { room_id: newRoom.id, user_id: currentUser.id },
-          { room_id: newRoom.id, user_id: profile.id }
-        ]);
+        .insert({ room_id: newRoom.id, user_id: currentUser.id, role: 'admin' });
 
-      if (partError) throw partError;
+      if (selfPartError) throw selfPartError;
+
+      const { error: otherPartError } = await supabase
+        .from('chat_participants')
+        .insert({ room_id: newRoom.id, user_id: profile.id, role: 'member' });
+
+      if (otherPartError) throw otherPartError;
 
       navigate(`/chat/${newRoom.id}`);
     } catch (error: any) {
@@ -220,9 +233,14 @@ export function Profile() {
               </div>
               <div className="flex items-center gap-3 text-muted-foreground">
                 <LinkIcon className="w-5 h-5 text-primary" />
-                <Link to={`/ngl/${profile.username}`} className="text-primary hover:underline font-medium truncate">
-                  ngl.me/{profile.username}
-                </Link>
+                <div className="flex items-center gap-2 overflow-hidden">
+                  <Link to={`/ngl/${profile.username}`} className="text-primary hover:underline font-medium truncate">
+                    {nglUrl.replace('https://', '').replace('http://', '')}
+                  </Link>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={copyNglLink}>
+                    {copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+                  </Button>
+                </div>
               </div>
             </div>
           </div>

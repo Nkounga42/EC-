@@ -37,7 +37,7 @@ export function AnonymousMessageForm({ recipientId, recipientUsername }: { recip
   };
 
   return (
-    <Card className="w-full max-w-md mx-auto bg-gradient-to-br from-pink-500 to-orange-400 text-white border-none shadow-xl">
+    <Card className="w-full max-w-md mx-auto bg-gradient-to-br from-primary to-secondary text-white border-none shadow-xl">
       <CardHeader className="text-center">
         <CardTitle className="text-2xl font-bold">Send an anonymous message to @{recipientUsername}</CardTitle>
         <CardDescription className="text-white/80">They will never know it's you!</CardDescription>
@@ -53,7 +53,7 @@ export function AnonymousMessageForm({ recipientId, recipientUsername }: { recip
           />
           <Button 
             type="submit" 
-            className="w-full bg-white text-orange-500 hover:bg-white/90 font-bold py-6 text-lg rounded-2xl shadow-lg transition-all hover:scale-[1.02] active:scale-[0.98]"
+            className="w-full bg-white text-primary hover:bg-white/90 font-bold py-6 text-lg rounded-2xl shadow-lg transition-all hover:scale-[1.02] active:scale-[0.98]"
             disabled={loading || !content.trim()}
           >
             {loading ? 'Sending...' : (

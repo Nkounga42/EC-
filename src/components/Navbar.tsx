@@ -27,7 +27,7 @@ export function Navbar() {
       <div className="container flex h-14 items-center justify-between mx-auto px-4">
         <div className="flex items-center gap-6">
           <Link to="/" className="flex items-center space-x-2">
-            <span className="font-bold text-xl tracking-tight">HYBRID</span>
+            <span className="font-bold text-xl tracking-tight text-primary">ESCIC COMMUNITY</span>
           </Link>
           <div className="hidden md:flex items-center gap-4 text-sm font-medium">
             <Link to="/" className="flex items-center gap-1 hover:text-primary transition-colors">

@@ -3,14 +3,26 @@ import { useParams } from 'react-router-dom';
 import { supabase } from '@/src/lib/supabase';
 import { UserProfile } from '@/src/types/database';
 import { AnonymousMessageForm } from '@/src/components/AnonymousMessageForm';
-import { Loader2, UserX } from 'lucide-react';
+import { Loader2, UserX, Copy, Check } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
 
 export function NGLPage() {
   const { username } = useParams<{ username: string }>();
   const [recipient, setRecipient] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const nglUrl = `${window.location.origin}/#/ngl/${username}`;
+
+  const copyNglLink = () => {
+    navigator.clipboard.writeText(nglUrl);
+    setCopied(true);
+    toast.success('NGL link copied to clipboard!');
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   useEffect(() => {
     const fetchRecipient = async () => {
@@ -64,7 +76,18 @@ export function NGLPage() {
 
   return (
     <div className="container mx-auto px-4 py-12">
-      <AnonymousMessageForm recipientId={recipient.id} recipientUsername={recipient.username} />
+      <div className="flex flex-col items-center gap-6">
+        <AnonymousMessageForm recipientId={recipient.id} recipientUsername={recipient.username} />
+        
+        <Button 
+          variant="outline" 
+          className="rounded-full gap-2 bg-white/50 backdrop-blur"
+          onClick={copyNglLink}
+        >
+          {copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+          Copy my NGL link
+        </Button>
+      </div>
     </div>
   );
 }
