@@ -299,6 +299,15 @@ export function StatusTray({ refreshTrigger }: { refreshTrigger?: number }) {
     return colors[index];
   };
 
+  const getStatusFontSize = (content: string) => {
+    const wordCount = content.trim() ? content.trim().split(/\s+/).length : 0;
+    if (wordCount <= 10) return 'text-4xl md:text-5xl font-bold';
+    if (wordCount <= 30) return 'text-3xl md:text-4xl font-bold';
+    if (wordCount <= 60) return 'text-2xl md:text-3xl font-medium';
+    if (wordCount <= 120) return 'text-xl md:text-2xl font-medium';
+    return 'text-lg md:text-xl font-medium';
+  };
+
   const getYoutubeId = (url: string) => {
     const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
     const match = url.match(regExp);
@@ -632,7 +641,7 @@ export function StatusTray({ refreshTrigger }: { refreshTrigger?: number }) {
               {/* Content */}
               <div className="flex-1 flex items-center justify-center p-8 relative">
                 <div className="text-center w-full">
-                  <p className={`text-2xl md:text-3xl text-white font-medium leading-tight whitespace-pre-wrap ${userStatuses[selectedUserIndex].statuses[currentStatusIndex].font_family || ''}`}>
+                  <p className={`text-white leading-tight whitespace-pre-wrap ${getStatusFontSize(userStatuses[selectedUserIndex].statuses[currentStatusIndex].content)} ${userStatuses[selectedUserIndex].statuses[currentStatusIndex].font_family || ''}`}>
                     {userStatuses[selectedUserIndex].statuses[currentStatusIndex].content}
                   </p>
                   {userStatuses[selectedUserIndex].statuses[currentStatusIndex].media_url && renderStatusMedia(userStatuses[selectedUserIndex].statuses[currentStatusIndex].media_url!)}

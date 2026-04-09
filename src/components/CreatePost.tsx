@@ -42,6 +42,13 @@ export function CreatePost({ onPostCreated, initialContent = '', className = '' 
   const [mediaType, setMediaType] = useState<'file' | 'url'>('file');
   const [externalUrl, setExternalUrl] = useState('');
 
+  const getWordCount = (text: string) => {
+    return text.trim() ? text.trim().split(/\s+/).length : 0;
+  };
+
+  const wordCount = getWordCount(content);
+  const isOverLimit = wordCount > 180;
+
   // Update content if initialContent changes
   React.useEffect(() => {
     if (initialContent) {
@@ -90,6 +97,10 @@ export function CreatePost({ onPostCreated, initialContent = '', className = '' 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!profile || (!content.trim() && !mediaFile)) return;
+    if (isOverLimit) {
+      toast.error('Le statut ne doit pas dépasser 180 mots');
+      return;
+    }
 
     setLoading(true);
     try {
@@ -170,6 +181,11 @@ export function CreatePost({ onPostCreated, initialContent = '', className = '' 
               value={content}
               onChange={(e) => setContent(e.target.value)}
             />
+            <div className="flex justify-end mt-1">
+              <span className={`text-[10px] font-bold ${isOverLimit ? 'text-destructive' : 'text-muted-foreground/50'}`}>
+                {wordCount}/180 mots
+              </span>
+            </div>
             {mediaType === 'file' && mediaPreview && (
               <div className="relative mt-2 rounded-md overflow-hidden border">
                 <img src={mediaPreview} alt="Preview" className="w-full h-auto max-h-[300px] object-cover" />
@@ -307,7 +323,7 @@ export function CreatePost({ onPostCreated, initialContent = '', className = '' 
           </div>
           <Button 
             onClick={handleSubmit} 
-            disabled={loading || (!content.trim() && !mediaFile && !externalUrl)} 
+            disabled={loading || isOverLimit || (!content.trim() && !mediaFile && !externalUrl)} 
             size="sm" 
             className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full px-6"
           >
