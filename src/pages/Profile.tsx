@@ -11,6 +11,7 @@ import { format, isValid } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { useAuth } from '@/src/contexts/AuthContext';
 import { toast } from 'sonner';
+import { CertifiedBadge } from '@/src/components/CertifiedBadge';
 
 export function Profile() {
   const { username } = useParams<{ username: string }>();
@@ -194,7 +195,10 @@ export function Profile() {
               </AvatarFallback>
             </Avatar>
             <div className="flex-1 pb-2 text-center md:text-left">
-              <h1 className="text-4xl font-extrabold tracking-tight">{profile.username}</h1>
+              <div className="flex items-center gap-2 justify-center md:justify-start">
+                <h1 className="text-4xl font-extrabold tracking-tight">{profile.username}</h1>
+                {profile.certified && <CertifiedBadge size="lg" />}
+              </div>
               <p className="text-lg text-muted-foreground">@{profile.username}</p>
             </div>
             <div className="flex gap-2 mb-2">

@@ -6,9 +6,10 @@ import { UserProfile, Post, AnonymousMessage } from '@/src/types/database';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Shield, Trash2, UserX, AlertTriangle, Eye } from 'lucide-react';
+import { Loader2, Shield, Trash2, UserX, AlertTriangle, Eye, CheckCircle, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
+import { CertifiedBadge } from '@/src/components/CertifiedBadge';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
@@ -40,6 +41,22 @@ export function Admin() {
       toast.error(error.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const toggleCertified = async (userId: string, currentStatus: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('users')
+        .update({ certified: !currentStatus })
+        .eq('id', userId);
+
+      if (error) throw error;
+      
+      setUsers(prev => prev.map(u => u.id === userId ? { ...u, certified: !currentStatus } : u));
+      toast.success(currentStatus ? "Certification retirée" : "Utilisateur certifié !");
+    } catch (error: any) {
+      toast.error(error.message);
     }
   };
 
@@ -105,9 +122,12 @@ export function Admin() {
                       {users.map((user) => (
                         <tr key={user.id} className="border-b">
                           <td className="px-4 py-3 font-medium">
-                            <Link to={`/profile/${user.username}`} className="text-primary hover:underline">
-                              {user.username}
-                            </Link>
+                            <div className="flex items-center gap-2">
+                              <Link to={`/profile/${user.username}`} className="text-primary hover:underline">
+                                {user.username}
+                              </Link>
+                              {user.certified && <CertifiedBadge size="sm" />}
+                            </div>
                           </td>
                           <td className="px-4 py-3">{user.email}</td>
                           <td className="px-4 py-3">
@@ -117,9 +137,20 @@ export function Admin() {
                           </td>
                           <td className="px-4 py-3">{format(new Date(user.created_at), 'd MMM yyyy', { locale: fr })}</td>
                           <td className="px-4 py-3">
-                            <Button variant="ghost" size="sm" className="text-destructive">
-                              <UserX className="w-4 h-4" />
-                            </Button>
+                            <div className="flex items-center gap-2">
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                className={user.certified ? "text-amber-600" : "text-muted-foreground"}
+                                onClick={() => toggleCertified(user.id, !!user.certified)}
+                                title={user.certified ? "Retirer la certification" : "Certifier l'utilisateur"}
+                              >
+                                {user.certified ? <XCircle className="w-4 h-4" /> : <CheckCircle className="w-4 h-4" />}
+                              </Button>
+                              <Button variant="ghost" size="sm" className="text-destructive">
+                                <UserX className="w-4 h-4" />
+                              </Button>
+                            </div>
                           </td>
                         </tr>
                       ))}

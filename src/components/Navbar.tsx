@@ -12,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Home, MessageSquare, User, Shield, LogOut, Send, FileText } from 'lucide-react';
+import { CertifiedBadge } from './CertifiedBadge';
 
 export function Navbar() {
   const { profile, signOut } = useAuth();
@@ -63,7 +64,10 @@ export function Navbar() {
                   <DropdownMenuGroup>
                     <DropdownMenuLabel className="font-normal">
                       <div className="flex flex-col space-y-1">
-                        <p className="text-sm font-medium leading-none">{profile.username}</p>
+                        <div className="flex items-center gap-1">
+                          <p className="text-sm font-medium leading-none">{profile.username}</p>
+                          {profile.certified && <CertifiedBadge size="sm" />}
+                        </div>
                         <p className="text-xs leading-none text-muted-foreground">{profile.email}</p>
                       </div>
                     </DropdownMenuLabel>

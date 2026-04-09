@@ -65,6 +65,16 @@ export function CreatePost({ onPostCreated, initialContent = '', className = '' 
     }
   };
 
+  const getSpotifyEmbedUrl = (url: string) => {
+    if (url.includes('/embed/')) return url;
+    const regExp = /open\.spotify\.com\/(?:[a-z]{2}-[a-z]{2}\/|intl-[a-z]{2}\/)?(track|album|playlist)\/([a-zA-Z0-9]+)/;
+    const match = url.match(regExp);
+    if (match) {
+      return `https://open.spotify.com/embed/${match[1]}/${match[2]}`;
+    }
+    return url;
+  };
+
   const handleExternalUrlChange = (val: string) => {
     // If user pastes a full iframe, try to extract the src
     if (val.includes('<iframe')) {
@@ -188,6 +198,29 @@ export function CreatePost({ onPostCreated, initialContent = '', className = '' 
                       frameBorder="0"
                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                       allowFullScreen
+                    ></iframe>
+                  </div>
+                ) : externalUrl.includes('spotify.com') ? (
+                  <div className="w-full">
+                    <iframe
+                      src={getSpotifyEmbedUrl(externalUrl)}
+                      width="100%"
+                      height="352"
+                      frameBorder="0"
+                      allowFullScreen
+                      allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+                      loading="lazy"
+                    ></iframe>
+                  </div>
+                ) : externalUrl.includes('soundcloud.com') ? (
+                  <div className="w-full">
+                    <iframe
+                      width="100%"
+                      height="166"
+                      scrolling="no"
+                      frameBorder="no"
+                      allow="autoplay"
+                      src={externalUrl.includes('w.soundcloud.com/player') ? externalUrl : `https://w.soundcloud.com/player/?url=${encodeURIComponent(externalUrl)}&color=%23ff5500&auto_play=false&hide_related=false&show_comments=true&show_user=true&show_reposts=false&show_teaser=true`}
                     ></iframe>
                   </div>
                 ) : externalUrl.match(/\.(jpeg|jpg|gif|png)$/) ? (

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { supabase } from '@/src/lib/supabase';
 import { Post, UserProfile } from '@/src/types/database';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -10,6 +10,7 @@ import { fr } from 'date-fns/locale';
 import { StatusView } from '@/src/types/database';
 import { CreateStatusModal } from './CreateStatusModal';
 import { toast } from 'sonner';
+import { CertifiedBadge } from './CertifiedBadge';
 
 interface UserStatus {
   user: UserProfile;
@@ -69,6 +70,7 @@ export function StatusTray({ refreshTrigger }: { refreshTrigger?: number }) {
   const [replyMessage, setReplyMessage] = useState('');
   const [sendingReply, setSendingReply] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
+  const pressTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     fetchStatuses();
@@ -118,6 +120,24 @@ export function StatusTray({ refreshTrigger }: { refreshTrigger?: number }) {
     setCurrentStatusIndex(0);
     setViewers([]);
     setShowViewers(false);
+    setIsPaused(false);
+    pressTimerRef.current = null;
+  };
+
+  const handlePressStart = () => {
+    pressTimerRef.current = Date.now();
+    setIsPaused(true);
+  };
+
+  const handlePressEnd = (action: () => void) => {
+    if (pressTimerRef.current) {
+      const duration = Date.now() - pressTimerRef.current;
+      setIsPaused(false);
+      pressTimerRef.current = null;
+      if (duration < 300) { // Seuil pour un clic vs appui long
+        action();
+      }
+    }
   };
 
   const markAsViewed = async (statusId: string) => {
@@ -285,6 +305,16 @@ export function StatusTray({ refreshTrigger }: { refreshTrigger?: number }) {
     return (match && match[2].length === 11) ? match[2] : null;
   };
 
+  const getSpotifyEmbedUrl = (url: string) => {
+    if (url.includes('/embed/')) return url;
+    const regExp = /open\.spotify\.com\/(?:[a-z]{2}-[a-z]{2}\/|intl-[a-z]{2}\/)?(track|album|playlist)\/([a-zA-Z0-9]+)/;
+    const match = url.match(regExp);
+    if (match) {
+      return `https://open.spotify.com/embed/${match[1]}/${match[2]}`;
+    }
+    return url;
+  };
+
   const renderStatusMedia = (url: string) => {
     const youtubeId = getYoutubeId(url);
     if (youtubeId) {
@@ -298,6 +328,44 @@ export function StatusTray({ refreshTrigger }: { refreshTrigger?: number }) {
             frameBorder="0"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
             allowFullScreen
+          ></iframe>
+        </div>
+      );
+    }
+
+    // Spotify Support
+    if (url.includes('spotify.com')) {
+      const embedUrl = getSpotifyEmbedUrl(url);
+      return (
+        <div className="mt-6 w-full rounded-xl overflow-hidden shadow-2xl">
+          <iframe
+            src={embedUrl}
+            width="100%"
+            height="352"
+            frameBorder="0"
+            allowFullScreen
+            allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+            loading="lazy"
+          ></iframe>
+        </div>
+      );
+    }
+
+    // SoundCloud Support
+    if (url.includes('soundcloud.com')) {
+      let embedUrl = url;
+      if (!url.includes('w.soundcloud.com/player')) {
+        embedUrl = `https://w.soundcloud.com/player/?url=${encodeURIComponent(url)}&color=%23ff5500&auto_play=false&hide_related=false&show_comments=true&show_user=true&show_reposts=false&show_teaser=true&visual=true`;
+      }
+      return (
+        <div className="mt-6 w-full rounded-xl overflow-hidden shadow-2xl">
+          <iframe
+            width="100%"
+            height="300"
+            scrolling="no"
+            frameBorder="no"
+            allow="autoplay"
+            src={embedUrl}
           ></iframe>
         </div>
       );
@@ -484,9 +552,12 @@ export function StatusTray({ refreshTrigger }: { refreshTrigger?: number }) {
                   </Avatar>
                   <SegmentedCircle count={us.statuses.length} color="#10b981" />
                 </div>
-                <span className="text-[10px] font-medium truncate w-16 text-center">
-                  {us.user.username}
-                </span>
+                <div className="flex items-center gap-0.5 justify-center w-16">
+                  <span className="text-[10px] font-medium truncate">
+                    {us.user.username}
+                  </span>
+                  {us.user.certified && <CertifiedBadge size="sm" className="w-2.5 h-2.5" />}
+                </div>
               </div>
             );
           })}
@@ -521,8 +592,9 @@ export function StatusTray({ refreshTrigger }: { refreshTrigger?: number }) {
                 {userStatuses[selectedUserIndex].statuses.map((_, i) => (
                   <div key={i} className="h-1 flex-1 bg-white/20 rounded-full overflow-hidden">
                     <motion.div 
+                      key={`${selectedUserIndex}-${currentStatusIndex}-${i}`}
                       initial={{ width: 0 }}
-                      animate={{ 
+                      animate={isPaused && i === currentStatusIndex ? { width: undefined } : { 
                         width: i < currentStatusIndex ? '100%' : i === currentStatusIndex ? '100%' : '0%' 
                       }}
                       transition={{ 
@@ -543,7 +615,10 @@ export function StatusTray({ refreshTrigger }: { refreshTrigger?: number }) {
                     <AvatarFallback>{userStatuses[selectedUserIndex].user.username.substring(0, 2).toUpperCase()}</AvatarFallback>
                   </Avatar>
                   <div className="text-white">
-                    <p className="font-bold text-sm">@{userStatuses[selectedUserIndex].user.username}</p>
+                    <div className="flex items-center gap-1">
+                      <p className="font-bold text-sm">@{userStatuses[selectedUserIndex].user.username}</p>
+                      {userStatuses[selectedUserIndex].user.certified && <CertifiedBadge size="sm" />}
+                    </div>
                     <p className="text-[10px] opacity-70">
                       {formatDistanceToNow(new Date(userStatuses[selectedUserIndex].statuses[currentStatusIndex].created_at), { addSuffix: true, locale: fr })}
                     </p>
@@ -564,9 +639,23 @@ export function StatusTray({ refreshTrigger }: { refreshTrigger?: number }) {
                 </div>
 
                 {/* Navigation Areas (Invisible overlay) */}
-                <div className="absolute inset-0 flex">
-                  <div className="w-1/3 h-full cursor-pointer" onClick={prevStatus} />
-                  <div className="w-2/3 h-full cursor-pointer" onClick={nextStatus} />
+                <div className="absolute inset-0 flex select-none">
+                  <div 
+                    className="w-1/3 h-full cursor-pointer" 
+                    onMouseDown={handlePressStart}
+                    onMouseUp={() => handlePressEnd(prevStatus)}
+                    onMouseLeave={() => { setIsPaused(false); pressTimerRef.current = null; }}
+                    onTouchStart={handlePressStart}
+                    onTouchEnd={() => handlePressEnd(prevStatus)}
+                  />
+                  <div 
+                    className="w-2/3 h-full cursor-pointer" 
+                    onMouseDown={handlePressStart}
+                    onMouseUp={() => handlePressEnd(nextStatus)}
+                    onMouseLeave={() => { setIsPaused(false); pressTimerRef.current = null; }}
+                    onTouchStart={handlePressStart}
+                    onTouchEnd={() => handlePressEnd(nextStatus)}
+                  />
                 </div>
               </div>
 

@@ -9,6 +9,7 @@ export interface UserProfile {
   role: Role;
   created_at: string;
   last_seen_at?: string | null;
+  certified?: boolean;
 }
 
 export interface Post {

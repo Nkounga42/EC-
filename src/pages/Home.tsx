@@ -12,6 +12,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Link, useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
+import { CertifiedBadge } from '@/src/components/CertifiedBadge';
 
 export function Home() {
   const { profile } = useAuth();
@@ -227,7 +228,10 @@ export function Home() {
                         <AvatarFallback>{user.username.substring(0, 2).toUpperCase()}</AvatarFallback>
                       </Avatar>
                       <div className="flex flex-col overflow-hidden">
-                        <span className="text-sm font-semibold truncate">{user.username}</span>
+                        <div className="flex items-center gap-1 overflow-hidden">
+                          <span className="text-sm font-semibold truncate">{user.username}</span>
+                          {user.certified && <CertifiedBadge size="sm" />}
+                        </div>
                         <span className="text-[10px] text-muted-foreground truncate">@{user.username}</span>
                       </div>
                     </Link>

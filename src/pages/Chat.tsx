@@ -14,6 +14,7 @@ import {
   Smile, Paperclip, Mic, Check, CheckCheck, Pin, X, CornerUpRight,
   UserPlus, Camera
 } from 'lucide-react';
+import { CertifiedBadge } from '@/src/components/CertifiedBadge';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
@@ -630,7 +631,10 @@ export function Chat() {
                                   )}
                                 </div>
                                 <div className="flex flex-col items-start">
-                                  <span className="font-bold text-sm">{user.username}</span>
+                                  <div className="flex items-center gap-1">
+                                    <span className="font-bold text-sm">{user.username}</span>
+                                    {user.certified && <CertifiedBadge size="sm" />}
+                                  </div>
                                   {isUserOnline(user.last_seen_at) ? (
                                     <span className="text-xs text-chart-3 font-medium">En ligne</span>
                                   ) : (
@@ -710,9 +714,12 @@ export function Chat() {
                       </div>
                       <div className="flex-1 overflow-hidden">
                         <div className="flex justify-between items-center mb-0.5">
-                          <span className="font-bold text-sm truncate">
-                            {getRoomName(room)}
-                          </span>
+                          <div className="flex items-center gap-1 truncate">
+                            <span className="font-bold text-sm truncate">
+                              {getRoomName(room)}
+                            </span>
+                            {!room.is_group && getOtherParticipant(room)?.certified && <CertifiedBadge size="sm" />}
+                          </div>
                           <span className="text-[10px] text-muted-foreground">
                             {room.last_message_at ? format(new Date(room.last_message_at), 'HH:mm') : ''}
                           </span>
@@ -762,7 +769,10 @@ export function Chat() {
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex flex-col">
-                    <span className="font-bold text-sm leading-tight">{getRoomName(selectedRoom)}</span>
+                    <div className="flex items-center gap-1">
+                      <span className="font-bold text-sm leading-tight">{getRoomName(selectedRoom)}</span>
+                      {!selectedRoom.is_group && getOtherParticipant(selectedRoom)?.certified && <CertifiedBadge size="sm" />}
+                    </div>
                     {!selectedRoom.is_group && (
                       <span className="text-[10px] text-muted-foreground">
                         {isUserOnline(getOtherParticipant(selectedRoom)?.last_seen_at) ? (
@@ -854,9 +864,12 @@ export function Chat() {
 
                             {/* Group Sender Name */}
                             {selectedRoom.is_group && !isOwn && (
-                              <p className="text-[10px] font-bold text-primary mb-0.5">
-                                {msg.sender?.username || 'User'}
-                              </p>
+                              <div className="flex items-center gap-1 mb-0.5">
+                                <p className="text-[10px] font-bold text-primary">
+                                  {msg.sender?.username || 'User'}
+                                </p>
+                                {msg.sender?.certified && <CertifiedBadge size="sm" className="w-2.5 h-2.5" />}
+                              </div>
                             )}
 
                             <p className="whitespace-pre-wrap break-words leading-relaxed pr-12">

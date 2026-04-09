@@ -14,6 +14,7 @@ import { Loader2, Heart, MessageCircle, Share2, ArrowLeft, Send, Trash2, Papercl
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { toast } from 'sonner';
+import { CertifiedBadge } from '@/src/components/CertifiedBadge';
 
 export function BlogDetail() {
   const { postId } = useParams<{ postId: string }>();
@@ -164,6 +165,16 @@ export function BlogDetail() {
     return (match && match[2].length === 11) ? match[2] : null;
   };
 
+  const getSpotifyEmbedUrl = (url: string) => {
+    if (url.includes('/embed/')) return url;
+    const regExp = /open\.spotify\.com\/(?:[a-z]{2}-[a-z]{2}\/|intl-[a-z]{2}\/)?(track|album|playlist)\/([a-zA-Z0-9]+)/;
+    const match = url.match(regExp);
+    if (match) {
+      return `https://open.spotify.com/embed/${match[1]}/${match[2]}`;
+    }
+    return url;
+  };
+
   const renderMedia = (url: string) => {
     const youtubeId = getYoutubeId(url);
     if (youtubeId) {
@@ -184,10 +195,7 @@ export function BlogDetail() {
 
     // Spotify Support
     if (url.includes('spotify.com')) {
-      let embedUrl = url;
-      if (!url.includes('/embed/')) {
-        embedUrl = url.replace('open.spotify.com/', 'open.spotify.com/embed/');
-      }
+      const embedUrl = getSpotifyEmbedUrl(url);
       return (
         <div className="w-full rounded-2xl overflow-hidden border shadow-xl">
           <iframe
@@ -360,7 +368,10 @@ export function BlogDetail() {
                 <AvatarFallback>{post.author?.username?.substring(0, 2).toUpperCase()}</AvatarFallback>
               </Avatar>
               <div>
-                <p className="font-bold text-sm group-hover:text-primary transition-colors">@{post.author?.username}</p>
+                <p className="font-bold text-sm group-hover:text-primary transition-colors flex items-center gap-1">
+                  @{post.author?.username}
+                  {post.author?.certified && <CertifiedBadge size="sm" />}
+                </p>
                 <p className="text-xs text-muted-foreground">
                   {formatDistanceToNow(new Date(post.created_at), { addSuffix: true, locale: fr })}
                 </p>
@@ -469,9 +480,12 @@ export function BlogDetail() {
                 <div className="flex-1 space-y-1">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <Link to={`/profile/${comment.author?.username}`} className="font-bold text-sm hover:underline">
-                        @{comment.author?.username}
-                      </Link>
+                      <div className="flex items-center gap-1">
+                        <Link to={`/profile/${comment.author?.username}`} className="font-bold text-sm hover:underline">
+                          @{comment.author?.username}
+                        </Link>
+                        {comment.author?.certified && <CertifiedBadge size="sm" />}
+                      </div>
                       <span className="text-[10px] text-muted-foreground">
                         {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true, locale: fr })}
                       </span>

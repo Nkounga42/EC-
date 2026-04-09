@@ -6,10 +6,25 @@ import { useAuth } from '@/src/contexts/AuthContext';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Heart, MessageCircle, Share2, MoreVertical } from 'lucide-react';
+import { Heart, MessageCircle, Share2, MoreVertical, Trash2, Flag, Link as LinkIcon } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { toast } from 'sonner';
+import { CertifiedBadge } from './CertifiedBadge';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 export function PostCard({ post }: { post: Post, key?: React.Key }) {
   const { profile } = useAuth();
@@ -17,6 +32,7 @@ export function PostCard({ post }: { post: Post, key?: React.Key }) {
   const [commentsCount, setCommentsCount] = useState(post.comments_count || 0);
   const [isLiked, setIsLiked] = useState(post.is_liked || false);
   const [loading, setLoading] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
   useEffect(() => {
     setLikesCount(post.likes_count || 0);
@@ -94,10 +110,44 @@ export function PostCard({ post }: { post: Post, key?: React.Key }) {
     toast.success('Lien du post copié dans le presse-papier !');
   };
 
+  const handleDelete = async () => {
+    if (!profile || profile.id !== post.author_id) return;
+
+    setLoading(true);
+    try {
+      const { error } = await supabase
+        .from('posts')
+        .delete()
+        .eq('id', post.id);
+
+      if (error) throw error;
+      toast.success('Post supprimé avec succès');
+      setIsDeleteDialogOpen(false);
+    } catch (error: any) {
+      toast.error('Erreur lors de la suppression : ' + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleReport = () => {
+    toast.success('Post signalé aux administrateurs');
+  };
+
   const getYoutubeId = (url: string) => {
     const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
     const match = url.match(regExp);
     return (match && match[2].length === 11) ? match[2] : null;
+  };
+
+  const getSpotifyEmbedUrl = (url: string) => {
+    if (url.includes('/embed/')) return url;
+    const regExp = /open\.spotify\.com\/(?:[a-z]{2}-[a-z]{2}\/|intl-[a-z]{2}\/)?(track|album|playlist)\/([a-zA-Z0-9]+)/;
+    const match = url.match(regExp);
+    if (match) {
+      return `https://open.spotify.com/embed/${match[1]}/${match[2]}`;
+    }
+    return url;
   };
 
   const renderMedia = (url: string) => {
@@ -120,11 +170,7 @@ export function PostCard({ post }: { post: Post, key?: React.Key }) {
 
     // Spotify Support
     if (url.includes('spotify.com')) {
-      let embedUrl = url;
-      if (!url.includes('/embed/')) {
-        // Convert regular link to embed link
-        embedUrl = url.replace('open.spotify.com/', 'open.spotify.com/embed/');
-      }
+      const embedUrl = getSpotifyEmbedUrl(url);
       return (
         <div className="w-full">
           <iframe
@@ -222,17 +268,62 @@ export function PostCard({ post }: { post: Post, key?: React.Key }) {
             </Avatar>
           </Link>
           <div className="flex flex-col">
-            <Link to={`/profile/${post.author?.username}`} className="text-sm font-semibold leading-none hover:underline">
+            <Link to={`/profile/${post.author?.username}`} className="text-sm font-semibold leading-none hover:underline flex items-center gap-1">
               {post.author?.username}
+              {post.author?.certified && <CertifiedBadge size="sm" />}
             </Link>
             <p className="text-xs text-muted-foreground">
               {formatDistanceToNow(new Date(post.created_at), { addSuffix: true, locale: fr })}
             </p>
           </div>
         </div>
-        <Button variant="ghost" size="icon" className="h-8 w-8">
-          <MoreVertical className="h-4 w-4" />
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <Button variant="ghost" size="icon" className="h-8 w-8">
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            }
+          />
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={handleShare} className="gap-2">
+              <LinkIcon className="h-4 w-4" />
+              <span>Copier le lien</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleReport} className="gap-2">
+              <Flag className="h-4 w-4" />
+              <span>Signaler</span>
+            </DropdownMenuItem>
+            {profile && profile.id === post.author_id && (
+              <DropdownMenuItem 
+                onClick={() => setIsDeleteDialogOpen(true)} 
+                className="gap-2 text-destructive focus:text-destructive"
+              >
+                <Trash2 className="h-4 w-4" />
+                <span>Supprimer</span>
+              </DropdownMenuItem>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Supprimer le post</DialogTitle>
+              <DialogDescription>
+                Êtes-vous sûr de vouloir supprimer ce post ? Cette action est irréversible.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button variant="ghost" onClick={() => setIsDeleteDialogOpen(false)} disabled={loading}>
+                Annuler
+              </Button>
+              <Button variant="destructive" onClick={handleDelete} disabled={loading}>
+                {loading ? 'Suppression...' : 'Supprimer'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </CardHeader>
       <CardContent className="pb-3">
         {post.post_type === 'blog' && (post.cover_image || post.media_url) && (

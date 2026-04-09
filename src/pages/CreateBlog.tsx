@@ -86,6 +86,22 @@ export function CreateBlog() {
     return data.publicUrl;
   };
 
+  const getYoutubeId = (url: string) => {
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+    const match = url.match(regExp);
+    return (match && match[2].length === 11) ? match[2] : null;
+  };
+
+  const getSpotifyEmbedUrl = (url: string) => {
+    if (url.includes('/embed/')) return url;
+    const regExp = /open\.spotify\.com\/(?:[a-z]{2}-[a-z]{2}\/|intl-[a-z]{2}\/)?(track|album|playlist)\/([a-zA-Z0-9]+)/;
+    const match = url.match(regExp);
+    if (match) {
+      return `https://open.spotify.com/embed/${match[1]}/${match[2]}`;
+    }
+    return url;
+  };
+
   const handleExternalUrlChange = (val: string) => {
     // If user pastes a full iframe, try to extract the src
     if (val.includes('<iframe')) {
@@ -290,6 +306,55 @@ export function CreateBlog() {
                       <p className="text-[10px] text-muted-foreground">
                         Collez un lien ou un code embed (YouTube, Spotify, SoundCloud, etc.).
                       </p>
+                      
+                      {/* Preview for URL */}
+                      {externalUrl && (
+                        <div className="mt-2 rounded-md overflow-hidden border bg-muted p-2">
+                          {getYoutubeId(externalUrl) ? (
+                            <div className="aspect-video">
+                              <iframe
+                                width="100%"
+                                height="100%"
+                                src={`https://www.youtube.com/embed/${getYoutubeId(externalUrl)}`}
+                                title="YouTube video player"
+                                frameBorder="0"
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                allowFullScreen
+                              ></iframe>
+                            </div>
+                          ) : externalUrl.includes('spotify.com') ? (
+                            <div className="w-full">
+                              <iframe
+                                src={getSpotifyEmbedUrl(externalUrl)}
+                                width="100%"
+                                height="152"
+                                frameBorder="0"
+                                allowFullScreen
+                                allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+                                loading="lazy"
+                              ></iframe>
+                            </div>
+                          ) : externalUrl.includes('soundcloud.com') ? (
+                            <div className="w-full">
+                              <iframe
+                                width="100%"
+                                height="166"
+                                scrolling="no"
+                                frameBorder="no"
+                                allow="autoplay"
+                                src={externalUrl.includes('w.soundcloud.com/player') ? externalUrl : `https://w.soundcloud.com/player/?url=${encodeURIComponent(externalUrl)}&color=%23ff5500&auto_play=false&hide_related=false&show_comments=true&show_user=true&show_reposts=false&show_teaser=true`}
+                              ></iframe>
+                            </div>
+                          ) : externalUrl.match(/\.(jpeg|jpg|gif|png|webp)$/i) ? (
+                            <img src={externalUrl} alt="Preview" className="w-full h-auto max-h-[200px] object-cover" referrerPolicy="no-referrer" />
+                          ) : (
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground p-2">
+                              <LinkIcon className="w-4 h-4" />
+                              <span className="truncate">{externalUrl}</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
