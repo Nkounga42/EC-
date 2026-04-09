@@ -21,10 +21,12 @@ export interface Post {
   cover_image?: string | null;
   font_family?: string | null;
   background_color?: string | null;
+  tags?: string[] | null;
   created_at: string;
   author?: UserProfile;
   likes_count?: number;
   comments_count?: number;
+  views_count?: number;
   is_liked?: boolean;
 }
 
@@ -78,4 +80,12 @@ export interface ChatParticipant {
   room_id: string;
   user_id: string;
   user?: UserProfile;
+}
+
+export interface StatusView {
+  id: string;
+  post_id: string;
+  viewer_id: string;
+  viewed_at: string;
+  viewer?: UserProfile;
 }

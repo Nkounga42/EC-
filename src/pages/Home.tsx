@@ -19,8 +19,9 @@ export function Home() {
   const initialContent = location.state?.initialContent || '';
   const [posts, setPosts] = useState<Post[]>([]);
   const [suggestedUsers, setSuggestedUsers] = useState<UserProfile[]>([]);
+  const [categories, setCategories] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<'all' | 'blog' | 'status'>('all');
+  const [filter, setFilter] = useState<string>('all');
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const fetchPosts = async () => {
@@ -36,8 +37,11 @@ export function Home() {
 
       if (filter === 'all') {
         query = query.neq('post_type', 'status');
+      } else if (filter === 'status') {
+        query = query.eq('post_type', 'status');
       } else {
-        query = query.eq('post_type', filter);
+        // It's a category/tag
+        query = query.eq('post_type', 'blog').contains('tags', [filter]);
       }
 
       const { data, error } = await query;
@@ -86,9 +90,27 @@ export function Home() {
     }
   };
 
+  const fetchCategories = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('posts')
+        .select('tags')
+        .eq('post_type', 'blog');
+      
+      if (error) throw error;
+      
+      const allTags = data?.flatMap(p => p.tags || []) || [];
+      const uniqueTags = Array.from(new Set(allTags)).sort();
+      setCategories(uniqueTags);
+    } catch (error: any) {
+      console.error('Error fetching categories:', error.message);
+    }
+  };
+
   useEffect(() => {
     fetchPosts();
     fetchSuggestedUsers();
+    fetchCategories();
   }, [filter, profile]);
 
   return (
@@ -128,7 +150,7 @@ export function Home() {
                     variant="outline" 
                     size="icon-xs" 
                     onClick={() => {
-                      navigator.clipboard.writeText(`${window.location.origin}/#/ngl/${profile.username}`);
+                      navigator.clipboard.writeText(`https://ais-pre-ba6w5osgwkenrhsrvhfga5-36828778751.europe-west2.run.app//#/ngl/${profile.username}`);
                       toast.success('Link copied!');
                     }}
                   >
@@ -143,17 +165,33 @@ export function Home() {
         {/* Main Feed */}
         <div className="col-span-1 lg:col-span-6 space-y-6">
           <StatusTray refreshTrigger={refreshTrigger} />
-          {profile && <CreatePost onPostCreated={fetchPosts} initialContent={initialContent} />}
+           
 
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-2xl font-bold tracking-tight">Feed</h2>
-            <Tabs value={filter} onValueChange={(v) => setFilter(v as any)} className="w-auto">
-              <TabsList className="grid grid-cols-3 w-[240px]">
-                <TabsTrigger value="all">All</TabsTrigger>
-                <TabsTrigger value="blog">Blogs</TabsTrigger>
-                <TabsTrigger value="status">Status</TabsTrigger>
-              </TabsList>
-            </Tabs>
+          <div className="flex flex-col gap-4 mb-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-bold tracking-tight">Feed</h2>
+            </div>
+            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-2">
+              <Button 
+                variant={filter === 'all' ? 'default' : 'outline'} 
+                size="sm" 
+                onClick={() => setFilter('all')}
+                className="rounded-full px-6 shrink-0"
+              >
+                All
+              </Button> 
+              {categories.map(category => (
+                <Button 
+                  key={category}
+                  variant={filter === category ? 'default' : 'outline'} 
+                  size="sm" 
+                  onClick={() => setFilter(category)}
+                  className="rounded-full px-6 shrink-0"
+                >
+                  {category}
+                </Button>
+              ))}
+            </div>
           </div>
 
           {loading ? (

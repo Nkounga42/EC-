@@ -29,7 +29,7 @@ const BG_OPTIONS = [
   { name: 'Dark', value: 'bg-zinc-900' },
 ];
 
-export function CreatePost({ onPostCreated, initialContent = '' }: { onPostCreated?: () => void, initialContent?: string }) {
+export function CreatePost({ onPostCreated, initialContent = '', className = '' }: { onPostCreated?: () => void, initialContent?: string, className?: string }) {
   const { profile } = useAuth();
   const [content, setContent] = useState(initialContent);
   const [loading, setLoading] = useState(false);
@@ -107,7 +107,7 @@ export function CreatePost({ onPostCreated, initialContent = '' }: { onPostCreat
   const isMedia = !!mediaFile;
 
   return (
-    <Card className="mb-6 overflow-hidden">
+    <Card className={`mb-6 overflow-hidden ${className}`}>
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -119,10 +119,7 @@ export function CreatePost({ onPostCreated, initialContent = '' }: { onPostCreat
               <p className="font-semibold text-sm">{profile.username}</p>
               <p className="text-xs text-muted-foreground">Share a status update</p>
             </div>
-          </div>
-          <Button variant="outline" size="sm" className="gap-2" render={<Link to="/create-blog" />} nativeButton={false}>
-            <FileText className="w-4 h-4" /> Write Blog
-          </Button>
+          </div> 
         </div>
       </CardHeader>
       <CardContent className="pb-2">

@@ -17,6 +17,7 @@ export function CreateBlog() {
   const navigate = useNavigate();
   const [title, setTitle] = useState('');
   const [content, setContent] = useState<string | undefined>('');
+  const [tags, setTags] = useState('');
   const [loading, setLoading] = useState(false);
   const [coverImage, setCoverImage] = useState<File | null>(null);
   const [mediaFile, setMediaFile] = useState<File | null>(null);
@@ -105,6 +106,7 @@ export function CreateBlog() {
         post_type: 'blog',
         cover_image: coverImageUrl,
         media_url: mediaUrl,
+        tags: tags.split(',').map(t => t.trim()).filter(t => t !== ''),
       }).select().single();
 
       if (error) throw error;
@@ -226,6 +228,17 @@ export function CreateBlog() {
                       Selected: {mediaFile.name}
                     </p>
                   )}
+                </div>
+
+                {/* Tags */}
+                <div className="space-y-2">
+                  <Label htmlFor="tags">Tags (comma separated)</Label>
+                  <Input
+                    id="tags"
+                    placeholder="tech, lifestyle, news..."
+                    value={tags}
+                    onChange={(e) => setTags(e.target.value)}
+                  />
                 </div>
 
                 <Button 

@@ -2,10 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '@/src/lib/supabase';
 import { Post, UserProfile } from '@/src/types/database';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Loader2, Plus, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Loader2, Plus, X, ChevronLeft, ChevronRight, Eye } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '@/src/contexts/AuthContext';
 import { formatDistanceToNow } from 'date-fns';
+import { StatusView } from '@/src/types/database';
+import { CreateStatusModal } from './CreateStatusModal';
 
 interface UserStatus {
   user: UserProfile;
@@ -59,6 +61,9 @@ export function StatusTray({ refreshTrigger }: { refreshTrigger?: number }) {
   const [loading, setLoading] = useState(true);
   const [selectedUserIndex, setSelectedUserIndex] = useState<number | null>(null);
   const [currentStatusIndex, setCurrentStatusIndex] = useState(0);
+  const [viewers, setViewers] = useState<StatusView[]>([]);
+  const [showViewers, setShowViewers] = useState(false);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   useEffect(() => {
     fetchStatuses();
@@ -106,7 +111,93 @@ export function StatusTray({ refreshTrigger }: { refreshTrigger?: number }) {
   const closeStatus = () => {
     setSelectedUserIndex(null);
     setCurrentStatusIndex(0);
+    setViewers([]);
+    setShowViewers(false);
   };
+
+  const markAsViewed = async (statusId: string) => {
+    if (!profile || !statusId) return;
+    
+    // Don't mark own status as viewed by self
+    const currentStatus = userStatuses[selectedUserIndex!]?.statuses[currentStatusIndex];
+    if (currentStatus?.author_id === profile.id) return;
+
+    try {
+      await supabase
+        .from('status_views')
+        .upsert({ 
+          post_id: statusId, 
+          viewer_id: profile.id 
+        }, { onConflict: 'post_id,viewer_id' });
+    } catch (error) {
+      console.error('Error marking status as viewed:', error);
+    }
+  };
+
+  const fetchViewers = async (statusId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('status_views')
+        .select('*, viewer:users(*)')
+        .eq('post_id', statusId)
+        .order('viewed_at', { ascending: false });
+
+      if (error) throw error;
+      setViewers(data || []);
+    } catch (error) {
+      console.error('Error fetching viewers:', error);
+    }
+  };
+
+  // Real-time viewer updates
+  useEffect(() => {
+    if (selectedUserIndex === null || !profile) return;
+    
+    const currentStatus = userStatuses[selectedUserIndex].statuses[currentStatusIndex];
+    
+    // 1. Subscribe to status_views for the list of viewers
+    const viewsChannel = supabase
+      .channel(`status_views:${currentStatus.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'status_views',
+          filter: `post_id=eq.${currentStatus.id}`
+        },
+        () => {
+          fetchViewers(currentStatus.id);
+        }
+      )
+      .subscribe();
+
+    // 2. Subscribe to posts for the views_count (updated via DB Trigger)
+    const postsChannel = supabase
+      .channel(`post_updates:${currentStatus.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'posts',
+          filter: `id=eq.${currentStatus.id}`
+        },
+        (payload) => {
+          const updatedPost = payload.new as Post;
+          setUserStatuses(prev => prev.map(us => ({
+            ...us,
+            statuses: us.statuses.map(s => s.id === updatedPost.id ? { ...s, views_count: updatedPost.views_count } : s)
+          })));
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(viewsChannel);
+      supabase.removeChannel(postsChannel);
+    };
+  }, [selectedUserIndex, currentStatusIndex, profile?.id]);
 
   const nextStatus = () => {
     if (selectedUserIndex === null) return;
@@ -138,7 +229,21 @@ export function StatusTray({ refreshTrigger }: { refreshTrigger?: number }) {
   useEffect(() => {
     let timer: any;
     if (selectedUserIndex !== null) {
-      timer = setTimeout(nextStatus, 5000);
+      const currentStatus = userStatuses[selectedUserIndex].statuses[currentStatusIndex];
+      
+      // Mark as viewed
+      markAsViewed(currentStatus.id);
+      
+      // If it's my own status, fetch viewers
+      if (currentStatus.author_id === profile?.id) {
+        fetchViewers(currentStatus.id);
+      } else {
+        setViewers([]);
+      }
+
+      if (!showViewers) {
+        timer = setTimeout(nextStatus, 5000);
+      }
     }
 
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -152,7 +257,7 @@ export function StatusTray({ refreshTrigger }: { refreshTrigger?: number }) {
       clearTimeout(timer);
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [selectedUserIndex, currentStatusIndex]);
+  }, [selectedUserIndex, currentStatusIndex, showViewers, profile?.id]);
 
   const getStatusBackground = (status: Post) => {
     if (status.media_url) return 'bg-zinc-900';
@@ -186,8 +291,7 @@ export function StatusTray({ refreshTrigger }: { refreshTrigger?: number }) {
               if (myStatusIdx !== -1) {
                 openStatus(myStatusIdx);
               } else {
-                // Scroll to CreatePost or focus it?
-                document.querySelector('textarea')?.focus();
+                setIsCreateModalOpen(true);
               }
             }}
           >
@@ -197,10 +301,21 @@ export function StatusTray({ refreshTrigger }: { refreshTrigger?: number }) {
                 <AvatarFallback>{profile.username.substring(0, 2).toUpperCase()}</AvatarFallback>
               </Avatar>
               {userStatuses.some(us => us.user.id === profile.id) ? (
-                <SegmentedCircle 
-                  count={userStatuses.find(us => us.user.id === profile.id)?.statuses.length || 0} 
-                  color="#10b981"
-                />
+                <>
+                  <SegmentedCircle 
+                    count={userStatuses.find(us => us.user.id === profile.id)?.statuses.length || 0} 
+                    color="#10b981"
+                  />
+                  <div 
+                    className="absolute -bottom-1 -right-1 bg-primary text-white rounded-full p-1 border-2 border-background hover:scale-110 transition-transform"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsCreateModalOpen(true);
+                    }}
+                  >
+                    <Plus className="w-3 h-3" />
+                  </div>
+                </>
               ) : (
                 <div className="absolute bottom-0 right-0 bg-emerald-600 text-white rounded-full p-0.5 border-2 border-background">
                   <Plus className="w-3 h-3" />
@@ -235,6 +350,19 @@ export function StatusTray({ refreshTrigger }: { refreshTrigger?: number }) {
               </div>
             );
           })}
+          
+          {/* Dedicated Add Status Button */}
+          {profile && (
+            <div 
+              className="flex flex-col items-center gap-1 shrink-0 cursor-pointer group"
+              onClick={() => setIsCreateModalOpen(true)}
+            >
+              <div className="h-16 w-16 rounded-full border-2 border-dashed border-muted-foreground/30 flex items-center justify-center group-hover:border-primary group-hover:bg-primary/5 transition-all">
+                <Plus className="w-6 h-6 text-muted-foreground group-hover:text-primary" />
+              </div>
+              <span className="text-[10px] font-medium text-muted-foreground group-hover:text-primary">Add Status</span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -310,18 +438,88 @@ export function StatusTray({ refreshTrigger }: { refreshTrigger?: number }) {
               </div>
 
               {/* Footer Controls */}
-              <div className="absolute bottom-8 left-0 right-0 flex justify-center gap-12 z-20 md:hidden">
-                <button onClick={prevStatus} className="text-white/50 hover:text-white">
-                  <ChevronLeft className="w-8 h-8" />
-                </button>
-                <button onClick={nextStatus} className="text-white/50 hover:text-white">
-                  <ChevronRight className="w-8 h-8" />
-                </button>
+              <div className="absolute bottom-8 left-0 right-0 flex flex-col items-center gap-6 z-20">
+                {/* Viewers Button (Only for own status) */}
+                {profile && userStatuses[selectedUserIndex].user.id === profile.id && (
+                  <button 
+                    onClick={() => setShowViewers(!showViewers)}
+                    className="flex flex-col items-center gap-1 text-white/80 hover:text-white transition-colors"
+                  >
+                    <div className="flex items-center gap-2 bg-black/20 backdrop-blur-md px-4 py-2 rounded-full border border-white/10">
+                      <Eye className="w-4 h-4" />
+                      <span className="text-xs font-bold">
+                        {userStatuses[selectedUserIndex].statuses[currentStatusIndex].views_count || 0}
+                      </span>
+                    </div>
+                    <span className="text-[10px] uppercase tracking-widest font-bold">Views</span>
+                  </button>
+                )}
+
+                <div className="flex justify-center gap-12 md:hidden">
+                  <button onClick={prevStatus} className="text-white/50 hover:text-white">
+                    <ChevronLeft className="w-8 h-8" />
+                  </button>
+                  <button onClick={nextStatus} className="text-white/50 hover:text-white">
+                    <ChevronRight className="w-8 h-8" />
+                  </button>
+                </div>
               </div>
+
+              {/* Viewers List Drawer */}
+              <AnimatePresence>
+                {showViewers && (
+                  <motion.div
+                    initial={{ y: '100%' }}
+                    animate={{ y: 0 }}
+                    exit={{ y: '100%' }}
+                    transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                    className="absolute inset-x-0 bottom-0 z-30 bg-white rounded-t-3xl shadow-2xl flex flex-col max-h-[60%]"
+                  >
+                    <div className="w-12 h-1.5 bg-zinc-200 rounded-full mx-auto my-4 shrink-0" onClick={() => setShowViewers(false)} />
+                    <div className="px-6 pb-4 flex items-center justify-between border-b shrink-0">
+                      <h4 className="font-bold text-lg">Viewed by</h4>
+                      <span className="bg-primary/10 text-primary px-3 py-1 rounded-full text-xs font-bold">
+                        {userStatuses[selectedUserIndex].statuses[currentStatusIndex].views_count || 0} people
+                      </span>
+                    </div>
+                    <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                      {viewers.length > 0 ? (
+                        viewers.map((view) => (
+                          <div key={view.id} className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <Avatar className="h-10 w-10">
+                                <AvatarImage src={view.viewer?.avatar_url || ''} />
+                                <AvatarFallback>{view.viewer?.username.substring(0, 2).toUpperCase()}</AvatarFallback>
+                              </Avatar>
+                              <div className="flex flex-col">
+                                <span className="font-bold text-sm">{view.viewer?.username}</span>
+                                <span className="text-[10px] text-muted-foreground">
+                                  {formatDistanceToNow(new Date(view.viewed_at), { addSuffix: true })}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-center py-12 text-muted-foreground">
+                          <Eye className="w-8 h-8 mx-auto mb-2 opacity-20" />
+                          <p>No views yet</p>
+                        </div>
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
+      {/* Create Status Modal */}
+      <CreateStatusModal 
+        isOpen={isCreateModalOpen} 
+        onClose={() => setIsCreateModalOpen(false)} 
+        onStatusCreated={fetchStatuses}
+      />
     </div>
   );
 }

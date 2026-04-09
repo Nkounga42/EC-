@@ -224,6 +224,15 @@ export function BlogDetail() {
               </div>
             </Link>
           </div>
+          {post.tags && post.tags.length > 0 && (
+            <div className="flex flex-wrap gap-2 pt-2">
+              {post.tags.map((tag, i) => (
+                <span key={i} className="px-3 py-1 bg-primary/10 text-primary text-xs font-bold rounded-full uppercase tracking-wider">
+                  #{tag}
+                </span>
+              ))}
+            </div>
+          )}
         </header>
 
         {(post.cover_image || post.media_url) && (

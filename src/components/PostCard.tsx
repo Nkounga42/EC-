@@ -109,6 +109,15 @@ export function PostCard({ post }: { post: Post, key?: React.Key }) {
             <Button variant="link" className="p-0 h-auto text-primary" render={<Link to={`/blog/${post.id}`} />} nativeButton={false}>
               Read more...
             </Button>
+            {post.tags && post.tags.length > 0 && (
+              <div className="flex flex-wrap gap-2 pt-2">
+                {post.tags.map((tag, i) => (
+                  <span key={i} className="px-2 py-0.5 bg-primary/10 text-primary text-[10px] font-bold rounded-full uppercase tracking-wider">
+                    #{tag}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
         ) : (
           <>

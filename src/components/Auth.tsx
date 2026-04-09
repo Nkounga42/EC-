@@ -27,9 +27,10 @@ export function Auth() {
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    const lowerEmail = email.toLowerCase().trim();
     try {
       const { data, error } = await supabase.auth.signUp({
-        email,
+        email: lowerEmail,
         password,
         options: {
           data: {
@@ -45,7 +46,7 @@ export function Auth() {
         const { error: profileError } = await supabase.from('users').insert({
           id: data.user.id,
           username,
-          email,
+          email: lowerEmail,
           role: 'user',
         });
         if (profileError) throw profileError;
@@ -62,9 +63,10 @@ export function Auth() {
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    const lowerEmail = email.toLowerCase().trim();
     try {
       const { error } = await supabase.auth.signInWithPassword({
-        email,
+        email: lowerEmail,
         password,
       });
       if (error) throw error;
@@ -94,7 +96,7 @@ export function Auth() {
               <form onSubmit={handleSignIn} className="space-y-4 pt-4">
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
-                  <Input id="email" type="email" placeholder="m@example.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                  <Input id="email" type="email" placeholder="m@example.com" value={email} onChange={(e) => setEmail(e.target.value.toLowerCase())} required />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="password">Password</Label>
@@ -113,7 +115,7 @@ export function Auth() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="reg-email">Email</Label>
-                  <Input id="reg-email" type="email" placeholder="m@example.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                  <Input id="reg-email" type="email" placeholder="m@example.com" value={email} onChange={(e) => setEmail(e.target.value.toLowerCase())} required />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="reg-password">Password</Label>
