@@ -31,13 +31,13 @@ export function Navbar() {
           </Link>
           <div className="hidden md:flex items-center gap-4 text-sm font-medium">
             <Link to="/" className="flex items-center gap-1 hover:text-primary transition-colors">
-              <Home className="w-4 h-4" /> Home
+              <Home className="w-4 h-4" /> Accueil
             </Link>
             <Link to="/chat" className="flex items-center gap-1 hover:text-primary transition-colors">
               <MessageSquare className="w-4 h-4" /> Chat
             </Link>
             <Link to="/create-blog" className="flex items-center gap-1 hover:text-primary transition-colors">
-              <FileText className="w-4 h-4" /> Create Blog
+              <FileText className="w-4 h-4" /> Créer un Blog
             </Link>
           </div>
         </div>
@@ -71,25 +71,25 @@ export function Navbar() {
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => navigate(`/profile/${profile.username}`)}>
                     <User className="mr-2 h-4 w-4" />
-                    <span>Profile</span>
+                    <span>Profil</span>
                   </DropdownMenuItem>
                   {profile.role === 'admin' && (
                     <DropdownMenuItem onClick={() => navigate('/admin')}>
                       <Shield className="mr-2 h-4 w-4" />
-                      <span>Admin Panel</span>
+                      <span>Panneau Admin</span>
                     </DropdownMenuItem>
                   )}
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleSignOut} className="text-destructive">
                     <LogOut className="mr-2 h-4 w-4" />
-                    <span>Log out</span>
+                    <span>Se déconnecter</span>
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </>
           ) : (
             <Button render={<Link to="/auth" />} variant="default" nativeButton={false}>
-              Sign In
+              Se connecter
             </Button>
           )}
         </div>

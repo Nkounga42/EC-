@@ -12,6 +12,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/componen
 import { Textarea } from '@/components/ui/textarea';
 import { Loader2, Heart, MessageCircle, Share2, ArrowLeft, Send, Trash2, Paperclip, Download } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { fr } from 'date-fns/locale';
 import { toast } from 'sonner';
 
 export function BlogDetail() {
@@ -28,6 +29,30 @@ export function BlogDetail() {
   useEffect(() => {
     if (postId) {
       fetchPostData();
+
+      // Subscribe to real-time updates for this specific post
+      const channel = supabase
+        .channel(`blog_post_updates_${postId}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'posts',
+            filter: `id=eq.${postId}`
+          },
+          (payload) => {
+            const updatedPost = payload.new as Post;
+            if (updatedPost.likes_count !== undefined) {
+              setLikesCount(updatedPost.likes_count);
+            }
+          }
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
     }
   }, [postId, profile]);
 
@@ -91,8 +116,8 @@ export function BlogDetail() {
     } catch (error: any) {
       console.error('Error fetching blog post:', error);
       const message = error.message === 'Failed to fetch' 
-        ? 'Network error: Could not connect to Supabase. Check your connection or project status.'
-        : error.message || 'Could not load blog post';
+        ? 'Erreur réseau : Impossible de se connecter à Supabase. Vérifiez votre connexion ou l\'état du projet.'
+        : error.message || 'Impossible de charger l\'article de blog';
       toast.error(message);
     } finally {
       setLoading(false);
@@ -101,32 +126,150 @@ export function BlogDetail() {
 
   const handleLike = async () => {
     if (!profile) {
-      toast.error('Please sign in to like posts');
+      toast.error('Veuillez vous connecter pour aimer les posts');
       return;
     }
 
+    // Optimistic update
+    const wasLiked = isLiked;
+    setIsLiked(!wasLiked);
+    setLikesCount(prev => wasLiked ? Math.max(0, prev - 1) : prev + 1);
+
     try {
-      if (isLiked) {
+      if (wasLiked) {
         const { error } = await supabase
           .from('likes')
           .delete()
           .match({ user_id: profile.id, target_id: postId, target_type: 'post' });
         
         if (error) throw error;
-        setLikesCount(prev => prev - 1);
-        setIsLiked(false);
       } else {
         const { error } = await supabase
           .from('likes')
           .insert({ user_id: profile.id, target_id: postId, target_type: 'post' });
         
         if (error) throw error;
-        setLikesCount(prev => prev + 1);
-        setIsLiked(true);
       }
     } catch (error: any) {
+      // Revert optimistic update on error
+      setIsLiked(wasLiked);
+      setLikesCount(prev => wasLiked ? prev + 1 : Math.max(0, prev - 1));
       toast.error(error.message);
     }
+  };
+
+  const getYoutubeId = (url: string) => {
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+    const match = url.match(regExp);
+    return (match && match[2].length === 11) ? match[2] : null;
+  };
+
+  const renderMedia = (url: string) => {
+    const youtubeId = getYoutubeId(url);
+    if (youtubeId) {
+      return (
+        <div className="aspect-video w-full rounded-2xl overflow-hidden border shadow-xl">
+          <iframe
+            width="100%"
+            height="100%"
+            src={`https://www.youtube.com/embed/${youtubeId}`}
+            title="YouTube video player"
+            frameBorder="0"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+          ></iframe>
+        </div>
+      );
+    }
+
+    // Spotify Support
+    if (url.includes('spotify.com')) {
+      let embedUrl = url;
+      if (!url.includes('/embed/')) {
+        embedUrl = url.replace('open.spotify.com/', 'open.spotify.com/embed/');
+      }
+      return (
+        <div className="w-full rounded-2xl overflow-hidden border shadow-xl">
+          <iframe
+            src={embedUrl}
+            width="100%"
+            height="352"
+            frameBorder="0"
+            allowFullScreen
+            allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+            loading="lazy"
+          ></iframe>
+        </div>
+      );
+    }
+
+    // SoundCloud Support
+    if (url.includes('soundcloud.com')) {
+      let embedUrl = url;
+      if (!url.includes('w.soundcloud.com/player')) {
+        embedUrl = `https://w.soundcloud.com/player/?url=${encodeURIComponent(url)}&color=%23ff5500&auto_play=false&hide_related=false&show_comments=true&show_user=true&show_reposts=false&show_teaser=true&visual=true`;
+      }
+      return (
+        <div className="w-full rounded-2xl overflow-hidden border shadow-xl">
+          <iframe
+            width="100%"
+            height="300"
+            scrolling="no"
+            frameBorder="no"
+            allow="autoplay"
+            src={embedUrl}
+          ></iframe>
+        </div>
+      );
+    }
+
+    // Check if it's an image
+    if (url.match(/\.(jpeg|jpg|gif|png|webp)$/i) || url.includes('supabase.co/storage/v1/object/public/posts/')) {
+      return (
+        <div className="rounded-2xl overflow-hidden border shadow-xl">
+          <img 
+            src={url} 
+            alt="Blog cover" 
+            className="w-full h-auto object-cover max-h-[600px]" 
+            referrerPolicy="no-referrer" 
+          />
+        </div>
+      );
+    }
+
+    // Check if it's a video file
+    if (url.match(/\.(mp4|webm|ogg)$/i)) {
+      return (
+        <div className="rounded-2xl overflow-hidden border shadow-xl bg-black">
+          <video controls className="w-full h-auto max-h-[600px] mx-auto">
+            <source src={url} />
+            Votre navigateur ne supporte pas la lecture de vidéos.
+          </video>
+        </div>
+      );
+    }
+
+    // Check if it's an audio file
+    if (url.match(/\.(mp3|wav|ogg)$/i)) {
+      return (
+        <div className="p-6 bg-muted rounded-2xl border border-dashed">
+          <audio controls className="w-full">
+            <source src={url} />
+            Votre navigateur ne supporte pas la lecture audio.
+          </audio>
+        </div>
+      );
+    }
+
+    return null;
+  };
+
+  const isEmbedUrl = (url: string) => {
+    return (
+      getYoutubeId(url) || 
+      url.includes('spotify.com') || 
+      url.includes('soundcloud.com')
+    );
   };
 
   const handleAddComment = async (e: React.FormEvent) => {
@@ -149,7 +292,7 @@ export function BlogDetail() {
 
       setComments(prev => [...prev, data]);
       setNewComment('');
-      toast.success('Comment added!');
+      toast.success('Commentaire ajouté !');
     } catch (error: any) {
       toast.error(error.message);
     } finally {
@@ -166,7 +309,7 @@ export function BlogDetail() {
       
       if (error) throw error;
       setComments(prev => prev.filter(c => c.id !== commentId));
-      toast.success('Comment deleted');
+      toast.success('Commentaire supprimé');
     } catch (error: any) {
       toast.error(error.message);
     }
@@ -176,7 +319,7 @@ export function BlogDetail() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh]">
         <Loader2 className="w-10 h-10 animate-spin text-primary" />
-        <p className="mt-4 text-muted-foreground">Loading blog post...</p>
+        <p className="mt-4 text-muted-foreground">Chargement de l'article de blog...</p>
       </div>
     );
   }
@@ -186,12 +329,12 @@ export function BlogDetail() {
       <div className="container mx-auto px-4 py-12 text-center">
         <Card className="max-w-md mx-auto p-8">
           <CardHeader>
-            <CardTitle className="text-2xl">Post not found</CardTitle>
+            <CardTitle className="text-2xl">Article non trouvé</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-muted-foreground">This blog post doesn't exist or has been removed.</p>
+            <p className="text-muted-foreground">Cet article de blog n'existe pas ou a été supprimé.</p>
             <Button render={<Link to="/" />} className="mt-6" nativeButton={false}>
-              Go Home
+              Aller à l'accueil
             </Button>
           </CardContent>
         </Card>
@@ -202,13 +345,13 @@ export function BlogDetail() {
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl">
       <Button variant="ghost" className="mb-6 gap-2" render={<Link to="/" />} nativeButton={false}>
-        <ArrowLeft className="w-4 h-4" /> Back to Feed
+        <ArrowLeft className="w-4 h-4" /> Retour au fil d'actualité
       </Button>
 
       <article className="space-y-8">
         <header className="space-y-4">
           <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight">
-            {post.title || "Untitled Blog Post"}
+            {post.title || "Article de blog sans titre"}
           </h1>
           <div className="flex items-center gap-4">
             <Link to={`/profile/${post.author?.username}`} className="flex items-center gap-3 group">
@@ -219,7 +362,7 @@ export function BlogDetail() {
               <div>
                 <p className="font-bold text-sm group-hover:text-primary transition-colors">@{post.author?.username}</p>
                 <p className="text-xs text-muted-foreground">
-                  {formatDistanceToNow(new Date(post.created_at), { addSuffix: true })}
+                  {formatDistanceToNow(new Date(post.created_at), { addSuffix: true, locale: fr })}
                 </p>
               </div>
             </Link>
@@ -235,35 +378,26 @@ export function BlogDetail() {
           )}
         </header>
 
-        {(post.cover_image || post.media_url) && (
-          <div className="rounded-2xl overflow-hidden border shadow-xl">
-            <img 
-              src={post.cover_image || post.media_url || ''} 
-              alt="Blog cover" 
-              className="w-full h-auto object-cover max-h-[600px]" 
-              referrerPolicy="no-referrer" 
-            />
-          </div>
-        )}
+        {(post.cover_image || post.media_url) && renderMedia(post.cover_image || post.media_url || '')}
 
         <div className="prose prose-lg dark:prose-invert max-w-none" data-color-mode="light">
           <MDEditor.Markdown source={post.content} style={{ backgroundColor: 'transparent' }} />
         </div>
 
-        {post.media_url && (
+        {post.media_url && !isEmbedUrl(post.media_url) && (
           <Card className="bg-muted/30 border-dashed">
             <CardContent className="py-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <Paperclip className="w-5 h-5 text-primary" />
                 <div>
-                  <p className="text-sm font-medium">Attachment</p>
+                  <p className="text-sm font-medium">Pièce jointe</p>
                   <p className="text-xs text-muted-foreground truncate max-w-[200px]">
                     {post.media_url.split('/').pop()}
                   </p>
                 </div>
               </div>
               <Button variant="outline" size="sm" className="gap-2" onClick={() => window.open(post.media_url!, '_blank')}>
-                <Download className="w-4 h-4" /> Download
+                <Download className="w-4 h-4" /> Télécharger
               </Button>
             </CardContent>
           </Card>
@@ -291,7 +425,7 @@ export function BlogDetail() {
         </footer>
 
         <section className="space-y-8">
-          <h3 className="text-2xl font-bold tracking-tight">Comments ({comments.length})</h3>
+          <h3 className="text-2xl font-bold tracking-tight">Commentaires ({comments.length})</h3>
           
           {profile ? (
             <div className="flex gap-4">
@@ -301,7 +435,7 @@ export function BlogDetail() {
               </Avatar>
               <form onSubmit={handleAddComment} className="flex-1 space-y-3">
                 <Textarea 
-                  placeholder="Add a comment..." 
+                  placeholder="Ajouter un commentaire..." 
                   className="min-h-[100px] resize-none focus-visible:ring-primary"
                   value={newComment}
                   onChange={(e) => setNewComment(e.target.value)}
@@ -309,7 +443,7 @@ export function BlogDetail() {
                 <div className="flex justify-end">
                   <Button type="submit" disabled={commenting || !newComment.trim()} className="gap-2 rounded-full px-6">
                     {commenting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                    Post Comment
+                    Publier le commentaire
                   </Button>
                 </div>
               </form>
@@ -317,8 +451,8 @@ export function BlogDetail() {
           ) : (
             <Card className="bg-muted/30 border-dashed">
               <CardContent className="py-6 text-center">
-                <p className="text-muted-foreground mb-4">You need to be signed in to comment.</p>
-                <Button render={<Link to="/auth" />} nativeButton={false}>Sign In</Button>
+                <p className="text-muted-foreground mb-4">Vous devez être connecté pour commenter.</p>
+                <Button render={<Link to="/auth" />} nativeButton={false}>Se connecter</Button>
               </CardContent>
             </Card>
           )}
@@ -339,7 +473,7 @@ export function BlogDetail() {
                         @{comment.author?.username}
                       </Link>
                       <span className="text-[10px] text-muted-foreground">
-                        {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })}
+                        {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true, locale: fr })}
                       </span>
                     </div>
                     {(profile?.id === comment.author_id || profile?.role === 'admin') && (
@@ -361,7 +495,7 @@ export function BlogDetail() {
             ))}
             {comments.length === 0 && (
               <div className="text-center py-12 text-muted-foreground italic">
-                No comments yet. Be the first to share your thoughts!
+                Pas encore de commentaires. Soyez le premier à partager vos pensées !
               </div>
             )}
           </div>

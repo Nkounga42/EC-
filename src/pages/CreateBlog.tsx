@@ -9,7 +9,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { Loader2, Image as ImageIcon, FileText, Send, ArrowLeft, Paperclip } from 'lucide-react';
+import { Loader2, Image as ImageIcon, FileText, Send, ArrowLeft, Paperclip, Link as LinkIcon } from 'lucide-react';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 
 export function CreateBlog() {
@@ -22,12 +23,32 @@ export function CreateBlog() {
   const [coverImage, setCoverImage] = useState<File | null>(null);
   const [mediaFile, setMediaFile] = useState<File | null>(null);
   const [coverPreview, setCoverPreview] = useState<string | null>(null);
+  const [mediaType, setMediaType] = useState<'file' | 'url'>('file');
+  const [externalUrl, setExternalUrl] = useState('');
 
   const handleCoverChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error('L\'image de couverture ne doit pas dépasser 10 Mo');
+        return;
+      }
       setCoverImage(file);
       setCoverPreview(URL.createObjectURL(file));
+    }
+  };
+
+  const handleMediaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error('La pièce jointe ne doit pas dépasser 10 Mo');
+        e.target.value = ''; // Reset input
+        return;
+      }
+      setMediaFile(file);
+    } else {
+      setMediaFile(null);
     }
   };
 
@@ -65,14 +86,26 @@ export function CreateBlog() {
     return data.publicUrl;
   };
 
+  const handleExternalUrlChange = (val: string) => {
+    // If user pastes a full iframe, try to extract the src
+    if (val.includes('<iframe')) {
+      const srcMatch = val.match(/src="([^"]+)"/);
+      if (srcMatch && srcMatch[1]) {
+        setExternalUrl(srcMatch[1]);
+        return;
+      }
+    }
+    setExternalUrl(val);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!profile) {
-      toast.error('You must be logged in to create a blog post');
+      toast.error('Vous devez être connecté pour créer un article de blog');
       return;
     }
     if (!title.trim() || !content?.trim()) {
-      toast.error('Title and content are required');
+      toast.error('Le titre et le contenu sont requis');
       return;
     }
 
@@ -86,17 +119,19 @@ export function CreateBlog() {
           coverImageUrl = await uploadFile(coverImage, 'covers');
         } catch (err) {
           console.error('Cover upload failed:', err);
-          toast.error('Failed to upload cover image. Continuing without it.');
+          toast.error("Échec du téléchargement de l'image de couverture. Continuation sans elle.");
         }
       }
 
-      if (mediaFile) {
+      if (mediaFile && mediaType === 'file') {
         try {
           mediaUrl = await uploadFile(mediaFile, 'attachments');
         } catch (err) {
           console.error('Media upload failed:', err);
-          toast.error('Failed to upload attachment. Continuing without it.');
+          toast.error('Échec du téléchargement de la pièce jointe. Continuation sans elle.');
         }
+      } else if (externalUrl.trim() && mediaType === 'url') {
+        mediaUrl = externalUrl.trim();
       }
 
       const { data, error } = await supabase.from('posts').insert({
@@ -111,11 +146,11 @@ export function CreateBlog() {
 
       if (error) throw error;
 
-      toast.success('Blog post published successfully!');
+      toast.success('Article de blog publié avec succès !');
       navigate(`/blog/${data.id}`);
     } catch (error: any) {
       console.error('Error creating blog:', error);
-      toast.error(error.message || 'Failed to create blog post');
+      toast.error(error.message || "Échec de la création de l'article de blog");
     } finally {
       setLoading(false);
     }
@@ -126,11 +161,11 @@ export function CreateBlog() {
       <div className="container mx-auto px-4 py-12 text-center">
         <Card className="max-w-md mx-auto">
           <CardHeader>
-            <CardTitle>Authentication Required</CardTitle>
-            <CardDescription>Please sign in to create a blog post.</CardDescription>
+            <CardTitle>Authentification Requise</CardTitle>
+            <CardDescription>Veuillez vous connecter pour créer un article de blog.</CardDescription>
           </CardHeader>
           <CardContent>
-            <Button onClick={() => navigate('/auth')}>Sign In</Button>
+            <Button onClick={() => navigate('/auth')}>Se connecter</Button>
           </CardContent>
         </Card>
       </div>
@@ -141,9 +176,9 @@ export function CreateBlog() {
     <div className="container mx-auto px-4 py-8 max-w-5xl">
       <div className="mb-6 flex items-center justify-between">
         <Button variant="ghost" onClick={() => navigate(-1)} className="gap-2">
-          <ArrowLeft className="w-4 h-4" /> Back
+          <ArrowLeft className="w-4 h-4" /> Retour
         </Button>
-        <h1 className="text-3xl font-bold tracking-tight">Create New Blog Post</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Créer un nouvel article de blog</h1>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-8">
@@ -152,14 +187,14 @@ export function CreateBlog() {
           <div className="lg:col-span-2 space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Post Content</CardTitle>
+                <CardTitle>Contenu de l'article</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="title">Title</Label>
+                  <Label htmlFor="title">Titre</Label>
                   <Input
                     id="title"
-                    placeholder="Enter a catchy title..."
+                    placeholder="Entrez un titre accrocheur..."
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
                     className="text-xl font-bold h-12"
@@ -167,7 +202,7 @@ export function CreateBlog() {
                   />
                 </div>
                 <div className="space-y-2" data-color-mode="light">
-                  <Label>Content (Markdown)</Label>
+                  <Label>Contenu (Markdown)</Label>
                   <MDEditor
                     value={content}
                     onChange={setContent}
@@ -183,12 +218,12 @@ export function CreateBlog() {
           <div className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Media & Settings</CardTitle>
+                <CardTitle>Médias & Paramètres</CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
                 {/* Cover Image */}
                 <div className="space-y-2">
-                  <Label>Cover Image</Label>
+                  <Label>Image de couverture</Label>
                   <div 
                     className="border-2 border-dashed rounded-lg p-4 text-center cursor-pointer hover:bg-accent transition-colors relative h-40 flex flex-col items-center justify-center overflow-hidden"
                     onClick={() => document.getElementById('cover-input')?.click()}
@@ -198,7 +233,7 @@ export function CreateBlog() {
                     ) : (
                       <>
                         <ImageIcon className="w-8 h-8 text-muted-foreground mb-2" />
-                        <span className="text-xs text-muted-foreground">Click to upload cover</span>
+                        <span className="text-xs text-muted-foreground">Cliquez pour télécharger une couverture</span>
                       </>
                     )}
                     <input 
@@ -212,30 +247,59 @@ export function CreateBlog() {
                 </div>
 
                 {/* Attachment */}
-                <div className="space-y-2">
-                  <Label htmlFor="media-file">Attachment (Media File)</Label>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      id="media-file"
-                      type="file"
-                      onChange={(e) => setMediaFile(e.target.files?.[0] || null)}
-                      className="cursor-pointer"
-                    />
-                    <Paperclip className="w-4 h-4 text-muted-foreground" />
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <Label>Pièce jointe / Média</Label>
+                    <Tabs value={mediaType} onValueChange={(v) => setMediaType(v as 'file' | 'url')}>
+                      <TabsList className="h-8">
+                        <TabsTrigger value="file" className="text-xs px-2 h-7">
+                          <Paperclip className="w-3 h-3 mr-1" /> Fichier
+                        </TabsTrigger>
+                        <TabsTrigger value="url" className="text-xs px-2 h-7">
+                          <LinkIcon className="w-3 h-3 mr-1" /> Lien
+                        </TabsTrigger>
+                      </TabsList>
+                    </Tabs>
                   </div>
-                  {mediaFile && (
-                    <p className="text-[10px] text-muted-foreground truncate">
-                      Selected: {mediaFile.name}
-                    </p>
+
+                  {mediaType === 'file' ? (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Input
+                          id="media-file"
+                          type="file"
+                          onChange={handleMediaChange}
+                          className="cursor-pointer"
+                        />
+                        <Paperclip className="w-4 h-4 text-muted-foreground" />
+                      </div>
+                      {mediaFile && (
+                        <p className="text-[10px] text-muted-foreground truncate">
+                          Sélectionné : {mediaFile.name}
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <Input
+                        placeholder="URL du média (YouTube, Spotify, SoundCloud, etc.)"
+                        value={externalUrl}
+                        onChange={(e) => handleExternalUrlChange(e.target.value)}
+                        className="text-sm"
+                      />
+                      <p className="text-[10px] text-muted-foreground">
+                        Collez un lien ou un code embed (YouTube, Spotify, SoundCloud, etc.).
+                      </p>
+                    </div>
                   )}
                 </div>
 
                 {/* Tags */}
                 <div className="space-y-2">
-                  <Label htmlFor="tags">Tags (comma separated)</Label>
+                  <Label htmlFor="tags">Tags (séparés par des virgules)</Label>
                   <Input
                     id="tags"
-                    placeholder="tech, lifestyle, news..."
+                    placeholder="tech, lifestyle, actualités..."
                     value={tags}
                     onChange={(e) => setTags(e.target.value)}
                   />
@@ -249,12 +313,12 @@ export function CreateBlog() {
                   {loading ? (
                     <>
                       <Loader2 className="w-5 h-5 animate-spin" />
-                      Publishing...
+                      Publication...
                     </>
                   ) : (
                     <>
                       <Send className="w-5 h-5" />
-                      Publish Post
+                      Publier l'article
                     </>
                   )}
                 </Button>
@@ -263,12 +327,12 @@ export function CreateBlog() {
 
             <Card className="bg-primary/5 border-primary/20">
               <CardHeader>
-                <CardTitle className="text-sm">Tips</CardTitle>
+                <CardTitle className="text-sm">Conseils</CardTitle>
               </CardHeader>
               <CardContent className="text-xs text-muted-foreground space-y-2">
-                <p>• Use Markdown for rich formatting.</p>
-                <p>• A good cover image increases engagement.</p>
-                <p>• You can attach files for your readers to download.</p>
+                <p>• Utilisez le Markdown pour un formatage riche.</p>
+                <p>• Une bonne image de couverture augmente l'engagement.</p>
+                <p>• Vous pouvez joindre des fichiers que vos lecteurs pourront télécharger.</p>
               </CardContent>
             </Card>
           </div>

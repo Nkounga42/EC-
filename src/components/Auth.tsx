@@ -52,7 +52,7 @@ export function Auth() {
         if (profileError) throw profileError;
       }
 
-      toast.success('Check your email for the confirmation link!');
+      toast.success('Vérifiez vos emails pour le lien de confirmation !');
     } catch (error: any) {
       toast.error(error.message);
     } finally {
@@ -70,7 +70,7 @@ export function Auth() {
         password,
       });
       if (error) throw error;
-      toast.success('Signed in successfully!');
+      toast.success('Connexion réussie !');
       navigate('/');
     } catch (error: any) {
       toast.error(error.message);
@@ -83,14 +83,14 @@ export function Auth() {
     <div className="flex items-center justify-center min-h-[80vh]">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle>Welcome</CardTitle>
-          <CardDescription>Sign in or create an account to get started.</CardDescription>
+          <CardTitle>Bienvenue</CardTitle>
+          <CardDescription>Connectez-vous ou créez un compte pour commencer.</CardDescription>
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="login">
             <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="login">Login</TabsTrigger>
-              <TabsTrigger value="register">Register</TabsTrigger>
+              <TabsTrigger value="login">Connexion</TabsTrigger>
+              <TabsTrigger value="register">S'inscrire</TabsTrigger>
             </TabsList>
             <TabsContent value="login">
               <form onSubmit={handleSignIn} className="space-y-4 pt-4">
@@ -99,18 +99,18 @@ export function Auth() {
                   <Input id="email" type="email" placeholder="m@example.com" value={email} onChange={(e) => setEmail(e.target.value.toLowerCase())} required />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
+                  <Label htmlFor="password">Mot de passe</Label>
                   <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
                 </div>
                 <Button type="submit" className="w-full" disabled={loading}>
-                  {loading ? 'Loading...' : 'Login'}
+                  {loading ? 'Chargement...' : 'Connexion'}
                 </Button>
               </form>
             </TabsContent>
             <TabsContent value="register">
               <form onSubmit={handleSignUp} className="space-y-4 pt-4">
                 <div className="space-y-2">
-                  <Label htmlFor="reg-username">Username</Label>
+                  <Label htmlFor="reg-username">Nom d'utilisateur</Label>
                   <Input id="reg-username" placeholder="johndoe" value={username} onChange={(e) => setUsername(e.target.value)} required />
                 </div>
                 <div className="space-y-2">
@@ -118,11 +118,11 @@ export function Auth() {
                   <Input id="reg-email" type="email" placeholder="m@example.com" value={email} onChange={(e) => setEmail(e.target.value.toLowerCase())} required />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="reg-password">Password</Label>
+                  <Label htmlFor="reg-password">Mot de passe</Label>
                   <Input id="reg-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
                 </div>
                 <Button type="submit" className="w-full" disabled={loading}>
-                  {loading ? 'Creating account...' : 'Register'}
+                  {loading ? 'Création du compte...' : "S'inscrire"}
                 </Button>
               </form>
             </TabsContent>

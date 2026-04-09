@@ -531,7 +531,7 @@ export function Chat() {
                 <DialogContent className="sm:max-w-[425px] p-0 overflow-hidden gap-0">
                   <DialogHeader className="p-4 bg-primary text-white">
                     <DialogTitle className="text-xl">
-                      {isCreatingGroup ? 'New Group' : 'New Chat'}
+                      {isCreatingGroup ? 'Nouveau Groupe' : 'Nouveau Chat'}
                     </DialogTitle>
                   </DialogHeader>
                   
@@ -543,21 +543,21 @@ export function Chat() {
                             <Camera className="w-6 h-6 text-muted-foreground" />
                           </div>
                           <Input 
-                            placeholder="Group Subject" 
+                            placeholder="Sujet du Groupe" 
                             value={groupName}
                             onChange={(e) => setGroupName(e.target.value)}
                             className="border-b border-t-0 border-x-0 rounded-none focus-visible:ring-0 px-0 text-lg"
                           />
                         </div>
                         <div className="text-sm font-medium text-muted-foreground">
-                          Add participants ({selectedUsersForGroup.length})
+                          Ajouter des participants ({selectedUsersForGroup.length})
                         </div>
                       </div>
                     ) : (
                       <div className="relative">
                         <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                         <Input 
-                          placeholder="Search users..." 
+                          placeholder="Rechercher des utilisateurs..." 
                           className="pl-10 rounded-full bg-muted/50 border-none"
                           value={userSearch}
                           onChange={(e) => setUserSearch(e.target.value)}
@@ -584,7 +584,7 @@ export function Chat() {
                               <Checkbox checked={selectedUsersForGroup.includes(user.id)} />
                             </div>
                           )) : (
-                            <p className="text-center py-8 text-muted-foreground">Search for users to add</p>
+                            <p className="text-center py-8 text-muted-foreground">Recherchez des utilisateurs à ajouter</p>
                           )}
                         </div>
                       ) : (
@@ -601,11 +601,11 @@ export function Chat() {
                             <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white">
                               <Users className="w-5 h-5" />
                             </div>
-                            <span className="font-bold">New Group</span>
+                            <span className="font-bold">Nouveau Groupe</span>
                           </Button>
                           
                           <div className="py-2 text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-2">
-                            {userSearch ? 'Search Results' : 'Online Users'}
+                            {userSearch ? 'Résultats de recherche' : 'Utilisateurs en ligne'}
                           </div>
 
                           {searchingUsers ? (
@@ -632,15 +632,15 @@ export function Chat() {
                                 <div className="flex flex-col items-start">
                                   <span className="font-bold text-sm">{user.username}</span>
                                   {isUserOnline(user.last_seen_at) ? (
-                                    <span className="text-xs text-chart-3 font-medium">Online</span>
+                                    <span className="text-xs text-chart-3 font-medium">En ligne</span>
                                   ) : (
-                                    <span className="text-xs text-muted-foreground">Offline</span>
+                                    <span className="text-xs text-muted-foreground">Hors ligne</span>
                                   )}
                                 </div>
                               </Button>
                             ))
                           ) : (
-                            <p className="text-center py-8 text-muted-foreground">No users found</p>
+                            <p className="text-center py-8 text-muted-foreground">Aucun utilisateur trouvé</p>
                           )}
                         </div>
                       )}
@@ -650,17 +650,17 @@ export function Chat() {
                   <DialogFooter className="p-4 bg-muted/30">
                     {isCreatingGroup ? (
                       <div className="flex justify-between w-full items-center">
-                        <Button variant="ghost" onClick={() => setIsCreatingGroup(false)}>Back</Button>
+                        <Button variant="ghost" onClick={() => setIsCreatingGroup(false)}>Retour</Button>
                         <Button 
                           className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-full px-8"
                           disabled={!groupName.trim() || selectedUsersForGroup.length === 0 || creatingRoom}
                           onClick={createGroupChat}
                         >
-                          {creatingRoom ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Create Group'}
+                          {creatingRoom ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Créer le Groupe'}
                         </Button>
                       </div>
                     ) : (
-                      <Button variant="ghost" className="w-full" onClick={() => setIsNewChatOpen(false)}>Cancel</Button>
+                      <Button variant="ghost" className="w-full" onClick={() => setIsNewChatOpen(false)}>Annuler</Button>
                     )}
                   </DialogFooter>
                 </DialogContent>
@@ -674,7 +674,7 @@ export function Chat() {
           <div className="p-2 border-b">
             <div className="relative">
               <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Search or start new chat" className="pl-10 bg-muted/50 border-none rounded-full h-10 focus-visible:ring-emerald-500" />
+              <Input placeholder="Rechercher ou démarrer un nouveau chat" className="pl-10 bg-muted/50 border-none rounded-full h-10 focus-visible:ring-emerald-500" />
             </div>
           </div>
 
@@ -720,7 +720,7 @@ export function Chat() {
                         <div className="flex items-center gap-1">
                           <CheckCheck className="w-3 h-3 text-emerald-500" />
                           <span className="text-xs text-muted-foreground truncate">
-                            {room.is_group ? 'Group Chat' : `@${other?.username || 'user'}`}
+                            {room.is_group ? 'Chat de Groupe' : `@${other?.username || 'utilisateur'}`}
                           </span>
                         </div>
                       </div>
@@ -732,7 +732,7 @@ export function Chat() {
                   <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
                     <MessageSquare className="w-8 h-8 text-muted-foreground" />
                   </div>
-                  <p className="text-sm text-muted-foreground">No chats yet. Click the + button to start a conversation!</p>
+                  <p className="text-sm text-muted-foreground">Pas encore de chats. Cliquez sur le bouton + pour commencer une conversation !</p>
                 </div>
               )}
             </div>
@@ -766,9 +766,9 @@ export function Chat() {
                     {!selectedRoom.is_group && (
                       <span className="text-[10px] text-muted-foreground">
                         {isUserOnline(getOtherParticipant(selectedRoom)?.last_seen_at) ? (
-                          <span className="text-chart-3 font-medium">online</span>
+                          <span className="text-chart-3 font-medium">en ligne</span>
                         ) : (
-                          <span>offline</span>
+                          <span>hors ligne</span>
                         )}
                       </span>
                     )}
@@ -802,7 +802,7 @@ export function Chat() {
                   <div className="flex items-center gap-3 overflow-hidden">
                     <Pin className="w-4 h-4 text-primary shrink-0" />
                     <div className="flex flex-col overflow-hidden">
-                      <span className="text-[10px] font-bold text-primary uppercase tracking-wider">Pinned Message</span>
+                      <span className="text-[10px] font-bold text-primary uppercase tracking-wider">Message Épinglé</span>
                       <p className="text-xs truncate text-muted-foreground">
                         {pinnedMessages[pinnedMessages.length - 1].content}
                       </p>
@@ -819,7 +819,7 @@ export function Chat() {
                 <div className="space-y-2 max-w-4xl mx-auto">
                   <div className="flex justify-center mb-4">
                     <span className="bg-white/80 backdrop-blur-sm text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-lg shadow-sm text-muted-foreground">
-                      Today
+                      Aujourd'hui
                     </span>
                   </div>
 
@@ -834,7 +834,7 @@ export function Chat() {
                           {msg.reply_to && (
                             <div className={`mb-[-8px] px-3 pt-2 pb-4 rounded-t-lg text-xs border-l-4 border-primary bg-black/5 flex flex-col gap-0.5 w-full ${isOwn ? 'mr-1' : 'ml-1'}`}>
                               <span className="font-bold text-primary">
-                                {msg.reply_to.sender_id === profile.id ? 'You' : 'User'}
+                                {msg.reply_to.sender_id === profile.id ? 'Vous' : 'Utilisateur'}
                               </span>
                               <p className="truncate opacity-70 italic">{msg.reply_to.content}</p>
                             </div>
@@ -894,7 +894,7 @@ export function Chat() {
                           {msg.is_pinned && (
                             <div className="flex items-center gap-1 mt-1 px-2 py-0.5 bg-white/50 rounded-full border border-emerald-500/20">
                               <Pin className="w-2 h-2 text-emerald-600" />
-                              <span className="text-[8px] font-bold text-emerald-600 uppercase tracking-tighter">Pinned</span>
+                              <span className="text-[8px] font-bold text-emerald-600 uppercase tracking-tighter">Épinglé</span>
                             </div>
                           )}
                         </div>
@@ -911,7 +911,7 @@ export function Chat() {
                 {replyingTo && (
                   <div className="mb-2 p-3 bg-white/80 rounded-lg border-l-4 border-emerald-500 flex items-center justify-between animate-in slide-in-from-bottom duration-200">
                     <div className="flex flex-col gap-0.5 overflow-hidden">
-                      <span className="text-xs font-bold text-emerald-600">Replying to {replyingTo.sender_id === profile.id ? 'yourself' : 'user'}</span>
+                      <span className="text-xs font-bold text-emerald-600">Répondre à {replyingTo.sender_id === profile.id ? 'vous-même' : 'utilisateur'}</span>
                       <p className="text-xs truncate text-muted-foreground italic">{replyingTo.content}</p>
                     </div>
                     <Button size="icon-xs" variant="ghost" onClick={() => setReplyingTo(null)}>
@@ -930,7 +930,7 @@ export function Chat() {
                     </Button>
                   </div>
                   <Input
-                    placeholder="Type a message"
+                    placeholder="Écrivez un message"
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
                     className="flex-1 bg-white border-none rounded-full h-11 focus-visible:ring-0 shadow-sm"
@@ -961,14 +961,14 @@ export function Chat() {
               <div className="w-24 h-24 rounded-full bg-emerald-100 flex items-center justify-center mb-6 shadow-inner">
                 <MessageSquare className="w-12 h-12 text-emerald-600" />
               </div>
-              <h3 className="text-2xl font-bold mb-3 text-foreground">WhatsApp Web</h3>
+              <h3 className="text-2xl font-bold mb-3 text-foreground">ESCIC Chat</h3>
               <p className="text-muted-foreground max-w-sm leading-relaxed">
-                Send and receive messages without keeping your phone online.
-                Use WhatsApp on up to 4 linked devices and 1 phone at the same time.
+                Envoyez et recevez des messages sans garder votre téléphone en ligne.
+                Utilisez ESCIC Chat sur jusqu'à 4 appareils liés et 1 téléphone en même temps.
               </p>
               <div className="mt-12 flex items-center gap-2 text-muted-foreground text-xs">
                 <Users className="w-4 h-4" />
-                End-to-end encrypted
+                Chiffré de bout en bout
               </div>
             </div>
           )}

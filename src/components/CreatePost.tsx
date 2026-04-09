@@ -8,7 +8,9 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
-import { Image as ImageIcon, Send, FileText, Type, Palette, X } from 'lucide-react';
+import { Image as ImageIcon, Send, FileText, Type, Palette, X, Link as LinkIcon } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 const FONT_OPTIONS = [
   { name: 'Sans', value: 'font-sans' },
@@ -37,6 +39,8 @@ export function CreatePost({ onPostCreated, initialContent = '', className = '' 
   const [backgroundColor, setBackgroundColor] = useState(BG_OPTIONS[0].value);
   const [mediaFile, setMediaFile] = useState<File | null>(null);
   const [mediaPreview, setMediaPreview] = useState<string | null>(null);
+  const [mediaType, setMediaType] = useState<'file' | 'url'>('file');
+  const [externalUrl, setExternalUrl] = useState('');
 
   // Update content if initialContent changes
   React.useEffect(() => {
@@ -48,13 +52,29 @@ export function CreatePost({ onPostCreated, initialContent = '', className = '' 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error('Le fichier ne doit pas dépasser 10 Mo');
+        e.target.value = '';
+        return;
+      }
       setMediaFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setMediaPreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+      setMediaPreview(URL.createObjectURL(file));
+    } else {
+      setMediaFile(null);
+      setMediaPreview(null);
     }
+  };
+
+  const handleExternalUrlChange = (val: string) => {
+    // If user pastes a full iframe, try to extract the src
+    if (val.includes('<iframe')) {
+      const srcMatch = val.match(/src="([^"]+)"/);
+      if (srcMatch && srcMatch[1]) {
+        setExternalUrl(srcMatch[1]);
+        return;
+      }
+    }
+    setExternalUrl(val);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -64,7 +84,7 @@ export function CreatePost({ onPostCreated, initialContent = '', className = '' 
     setLoading(true);
     try {
       let mediaUrl = null;
-      if (mediaFile) {
+      if (mediaType === 'file' && mediaFile) {
         const fileExt = mediaFile.name.split('.').pop();
         const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
         const filePath = `posts/${fileName}`;
@@ -77,6 +97,8 @@ export function CreatePost({ onPostCreated, initialContent = '', className = '' 
 
         const { data } = supabase.storage.from('posts').getPublicUrl(filePath);
         mediaUrl = data.publicUrl;
+      } else if (mediaType === 'url' && externalUrl.trim()) {
+        mediaUrl = externalUrl.trim();
       }
 
       const { error } = await supabase.from('posts').insert({
@@ -93,7 +115,8 @@ export function CreatePost({ onPostCreated, initialContent = '', className = '' 
       setContent('');
       setMediaFile(null);
       setMediaPreview(null);
-      toast.success('Status updated!');
+      setExternalUrl('');
+      toast.success('Statut mis à jour !');
       if (onPostCreated) onPostCreated();
     } catch (error: any) {
       toast.error(error.message);
@@ -104,7 +127,13 @@ export function CreatePost({ onPostCreated, initialContent = '', className = '' 
 
   if (!profile) return null;
 
-  const isMedia = !!mediaFile;
+  const isMedia = !!mediaFile || (mediaType === 'url' && !!externalUrl);
+
+  const getYoutubeId = (url: string) => {
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+    const match = url.match(regExp);
+    return (match && match[2].length === 11) ? match[2] : null;
+  };
 
   return (
     <Card className={`mb-6 overflow-hidden ${className}`}>
@@ -117,7 +146,7 @@ export function CreatePost({ onPostCreated, initialContent = '', className = '' 
             </Avatar>
             <div className="flex-1">
               <p className="font-semibold text-sm">{profile.username}</p>
-              <p className="text-xs text-muted-foreground">Share a status update</p>
+              <p className="text-xs text-muted-foreground">Partager une mise à jour de statut</p>
             </div>
           </div> 
         </div>
@@ -126,12 +155,12 @@ export function CreatePost({ onPostCreated, initialContent = '', className = '' 
         <form onSubmit={handleSubmit}>
           <div className={`rounded-lg transition-all duration-300 ${!isMedia ? backgroundColor : 'bg-background'} p-4`}>
             <Textarea
-              placeholder="What's on your mind?"
+              placeholder="À quoi pensez-vous ?"
               className={`min-h-[120px] resize-none border-none focus-visible:ring-0 text-lg font-medium placeholder:text-muted-foreground/50 ${!isMedia ? `${fontFamily} ${backgroundColor === 'bg-background' ? 'text-foreground' : 'text-white'}` : 'text-foreground'}`}
               value={content}
               onChange={(e) => setContent(e.target.value)}
             />
-            {mediaPreview && (
+            {mediaType === 'file' && mediaPreview && (
               <div className="relative mt-2 rounded-md overflow-hidden border">
                 <img src={mediaPreview} alt="Preview" className="w-full h-auto max-h-[300px] object-cover" />
                 <Button 
@@ -145,6 +174,30 @@ export function CreatePost({ onPostCreated, initialContent = '', className = '' 
                 >
                   <X className="w-3 h-3" />
                 </Button>
+              </div>
+            )}
+            {mediaType === 'url' && externalUrl && (
+              <div className="mt-2 rounded-md overflow-hidden border bg-muted p-2">
+                {getYoutubeId(externalUrl) ? (
+                  <div className="aspect-video">
+                    <iframe
+                      width="100%"
+                      height="100%"
+                      src={`https://www.youtube.com/embed/${getYoutubeId(externalUrl)}`}
+                      title="YouTube video player"
+                      frameBorder="0"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                    ></iframe>
+                  </div>
+                ) : externalUrl.match(/\.(jpeg|jpg|gif|png)$/) ? (
+                  <img src={externalUrl} alt="Preview" className="w-full h-auto max-h-[300px] object-cover" referrerPolicy="no-referrer" />
+                ) : (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground p-2">
+                    <LinkIcon className="w-4 h-4" />
+                    <span className="truncate">{externalUrl}</span>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -184,34 +237,64 @@ export function CreatePost({ onPostCreated, initialContent = '', className = '' 
           )}
         </form>
       </CardContent>
-      <CardFooter className="flex justify-between pt-2">
-        <div className="flex gap-2">
-          <input
-            type="file"
-            id="status-media"
-            className="hidden"
-            accept="image/*,video/*,audio/*"
-            onChange={handleFileChange}
-          />
+      <CardFooter className="flex flex-col gap-4 pt-2">
+        <div className="w-full flex items-center justify-between">
+          <div className="flex gap-2">
+            <Tabs value={mediaType} onValueChange={(v) => setMediaType(v as 'file' | 'url')}>
+              <TabsList className="h-8">
+                <TabsTrigger value="file" className="text-xs px-2 h-7">
+                  <ImageIcon className="w-3 h-3 mr-1" /> Fichier
+                </TabsTrigger>
+                <TabsTrigger value="url" className="text-xs px-2 h-7">
+                  <LinkIcon className="w-3 h-3 mr-1" /> Lien
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+
+            {mediaType === 'file' && (
+              <>
+                <input
+                  type="file"
+                  id="status-media"
+                  className="hidden"
+                  accept="image/*,video/*,audio/*"
+                  onChange={handleFileChange}
+                />
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="gap-2 h-8"
+                  onClick={() => document.getElementById('status-media')?.click()}
+                >
+                  <ImageIcon className="w-4 h-4" />
+                  {mediaFile ? 'Changer' : 'Ajouter'}
+                </Button>
+              </>
+            )}
+          </div>
           <Button 
-            variant="ghost" 
+            onClick={handleSubmit} 
+            disabled={loading || (!content.trim() && !mediaFile && !externalUrl)} 
             size="sm" 
-            className="gap-2"
-            onClick={() => document.getElementById('status-media')?.click()}
+            className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full px-6"
           >
-            <ImageIcon className="w-4 h-4" />
-            {isMedia ? 'Change Media' : 'Add Media'}
+            <Send className="w-4 h-4" />
+            {loading ? 'Publication...' : 'Partager le statut'}
           </Button>
         </div>
-        <Button 
-          onClick={handleSubmit} 
-          disabled={loading || (!content.trim() && !mediaFile)} 
-          size="sm" 
-          className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full px-6"
-        >
-          <Send className="w-4 h-4" />
-          {loading ? 'Posting...' : 'Share Status'}
-        </Button>
+
+        {mediaType === 'url' && (
+          <div className="w-full space-y-2">
+            <Label htmlFor="external-url" className="text-xs">URL du média (YouTube, Spotify, SoundCloud, etc.)</Label>
+            <Input
+              id="external-url"
+              placeholder="https://... ou code embed"
+              value={externalUrl}
+              onChange={(e) => handleExternalUrlChange(e.target.value)}
+              className="h-8 text-sm"
+            />
+          </div>
+        )}
       </CardFooter>
     </Card>
   );

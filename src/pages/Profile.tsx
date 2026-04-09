@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Loader2, Calendar, MapPin, Link as LinkIcon, Edit, MessageSquare, MessageCircle, Copy, Check } from 'lucide-react';
 import { format, isValid } from 'date-fns';
+import { fr } from 'date-fns/locale';
 import { useAuth } from '@/src/contexts/AuthContext';
 import { toast } from 'sonner';
 
@@ -26,7 +27,7 @@ export function Profile() {
   const copyNglLink = () => {
     navigator.clipboard.writeText(nglUrl);
     setCopied(true);
-    toast.success('NGL link copied to clipboard!');
+    toast.success('Lien NGL copié dans le presse-papier !');
     setTimeout(() => setCopied(false), 2000);
   };
 
@@ -75,7 +76,7 @@ export function Profile() {
         setPosts(postsWithLikes);
       } catch (error: any) {
         console.error('Error fetching profile:', error.message);
-        toast.error('Could not load profile');
+        toast.error('Impossible de charger le profil');
       } finally {
         setLoading(false);
       }
@@ -143,7 +144,7 @@ export function Profile() {
       navigate(`/chat/${newRoom.id}`);
     } catch (error: any) {
       console.error('Error starting chat:', error.message);
-      toast.error('Could not start chat');
+      toast.error('Impossible de démarrer le chat');
     } finally {
       setStartingChat(false);
     }
@@ -153,7 +154,7 @@ export function Profile() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh]">
         <Loader2 className="w-10 h-10 animate-spin text-primary" />
-        <p className="mt-4 text-muted-foreground">Loading profile...</p>
+        <p className="mt-4 text-muted-foreground">Chargement du profil...</p>
       </div>
     );
   }
@@ -163,12 +164,12 @@ export function Profile() {
       <div className="container mx-auto px-4 py-12 text-center">
         <Card className="max-w-md mx-auto p-8">
           <CardHeader>
-            <CardTitle className="text-2xl">User not found</CardTitle>
+            <CardTitle className="text-2xl">Utilisateur non trouvé</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-muted-foreground">The user @{username} doesn't exist or has been removed.</p>
+            <p className="text-muted-foreground">L'utilisateur @{username} n'existe pas ou a été supprimé.</p>
             <Button render={<Link to="/" />} className="mt-6" nativeButton={false}>
-              Go Home
+              Aller à l'accueil
             </Button>
           </CardContent>
         </Card>
@@ -178,7 +179,7 @@ export function Profile() {
 
   const isOwnProfile = currentUser?.id === profile.id;
   const joinDate = new Date(profile.created_at);
-  const formattedJoinDate = isValid(joinDate) ? format(joinDate, 'MMMM yyyy') : 'Recently';
+  const formattedJoinDate = isValid(joinDate) ? format(joinDate, 'MMMM yyyy', { locale: fr }) : 'Récemment';
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl">
@@ -198,7 +199,7 @@ export function Profile() {
             </div>
             <div className="flex gap-2 mb-2">
               <Button render={<Link to={`/ngl/${profile.username}`} />} variant="default" className="gap-2 rounded-full px-6" nativeButton={false}>
-                <MessageSquare className="w-4 h-4" /> Send NGL
+                <MessageSquare className="w-4 h-4" /> Envoyer un NGL
               </Button>
               {!isOwnProfile && (
                 <Button 
@@ -213,7 +214,7 @@ export function Profile() {
               )}
               {isOwnProfile && (
                 <Button variant="outline" className="gap-2 rounded-full">
-                  <Edit className="w-4 h-4" /> Edit
+                  <Edit className="w-4 h-4" /> Modifier
                 </Button>
               )}
             </div>
@@ -222,14 +223,14 @@ export function Profile() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="md:col-span-2 space-y-6">
               <div>
-                <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-2">About</h3>
-                <p className="text-lg leading-relaxed">{profile.bio || "No bio yet. This user is a mystery!"}</p>
+                <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-2">À propos</h3>
+                <p className="text-lg leading-relaxed">{profile.bio || "Pas encore de bio. Cet utilisateur est un mystère !"}</p>
               </div>
             </div>
             <div className="space-y-4 pt-2">
               <div className="flex items-center gap-3 text-muted-foreground">
                 <Calendar className="w-5 h-5 text-primary" />
-                <span>Joined {formattedJoinDate}</span>
+                <span>Rejoint en {formattedJoinDate}</span>
               </div>
               <div className="flex items-center gap-3 text-muted-foreground">
                 <LinkIcon className="w-5 h-5 text-primary" />
@@ -257,7 +258,7 @@ export function Profile() {
           </div>
         ) : (
           <div className="text-center py-12 bg-muted/30 rounded-lg border border-dashed">
-            <p className="text-muted-foreground">No posts yet.</p>
+            <p className="text-muted-foreground">Pas encore de posts.</p>
           </div>
         )}
       </div>

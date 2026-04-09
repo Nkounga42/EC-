@@ -20,7 +20,7 @@ export function NGLPage() {
   const copyNglLink = () => {
     navigator.clipboard.writeText(nglUrl);
     setCopied(true);
-    toast.success('NGL link copied to clipboard!');
+    toast.success('Lien NGL copié dans le presse-papier !');
     setTimeout(() => setCopied(false), 2000);
   };
 
@@ -64,10 +64,10 @@ export function NGLPage() {
             <div className="mx-auto w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center mb-4">
               <UserX className="w-6 h-6 text-destructive" />
             </div>
-            <CardTitle>User not found</CardTitle>
+            <CardTitle>Utilisateur non trouvé</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-muted-foreground">The user @{username} doesn't exist or has disabled their anonymous link.</p>
+            <p className="text-muted-foreground">L'utilisateur @{username} n'existe pas ou a désactivé son lien anonyme.</p>
           </CardContent>
         </Card>
       </div>
@@ -85,7 +85,7 @@ export function NGLPage() {
           onClick={copyNglLink}
         >
           {copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
-          Copy my NGL link
+          Copier mon lien NGL
         </Button>
       </div>
     </div>

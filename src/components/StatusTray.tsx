@@ -2,12 +2,14 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '@/src/lib/supabase';
 import { Post, UserProfile } from '@/src/types/database';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Loader2, Plus, X, ChevronLeft, ChevronRight, Eye } from 'lucide-react';
+import { Loader2, Plus, X, ChevronLeft, ChevronRight, Eye, Send } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '@/src/contexts/AuthContext';
 import { formatDistanceToNow } from 'date-fns';
+import { fr } from 'date-fns/locale';
 import { StatusView } from '@/src/types/database';
 import { CreateStatusModal } from './CreateStatusModal';
+import { toast } from 'sonner';
 
 interface UserStatus {
   user: UserProfile;
@@ -64,6 +66,9 @@ export function StatusTray({ refreshTrigger }: { refreshTrigger?: number }) {
   const [viewers, setViewers] = useState<StatusView[]>([]);
   const [showViewers, setShowViewers] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [replyMessage, setReplyMessage] = useState('');
+  const [sendingReply, setSendingReply] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
 
   useEffect(() => {
     fetchStatuses();
@@ -241,7 +246,7 @@ export function StatusTray({ refreshTrigger }: { refreshTrigger?: number }) {
         setViewers([]);
       }
 
-      if (!showViewers) {
+      if (!showViewers && !isPaused) {
         timer = setTimeout(nextStatus, 5000);
       }
     }
@@ -274,12 +279,147 @@ export function StatusTray({ refreshTrigger }: { refreshTrigger?: number }) {
     return colors[index];
   };
 
+  const getYoutubeId = (url: string) => {
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+    const match = url.match(regExp);
+    return (match && match[2].length === 11) ? match[2] : null;
+  };
+
+  const renderStatusMedia = (url: string) => {
+    const youtubeId = getYoutubeId(url);
+    if (youtubeId) {
+      return (
+        <div className="mt-6 aspect-video w-full rounded-xl overflow-hidden shadow-2xl">
+          <iframe
+            width="100%"
+            height="100%"
+            src={`https://www.youtube.com/embed/${youtubeId}`}
+            title="YouTube video player"
+            frameBorder="0"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+          ></iframe>
+        </div>
+      );
+    }
+
+    // Check if it's an image
+    if (url.match(/\.(jpeg|jpg|gif|png|webp)$/i) || url.includes('supabase.co/storage/v1/object/public/posts/')) {
+      return (
+        <img 
+          src={url} 
+          alt="Status media"
+          className="mt-6 rounded-xl max-h-[50vh] object-contain mx-auto shadow-2xl"
+          referrerPolicy="no-referrer"
+        />
+      );
+    }
+
+    // Check if it's a video file
+    if (url.match(/\.(mp4|webm|ogg)$/i)) {
+      return (
+        <video controls className="mt-6 rounded-xl max-h-[50vh] mx-auto shadow-2xl">
+          <source src={url} />
+          Votre navigateur ne supporte pas la lecture de vidéos.
+        </video>
+      );
+    }
+
+    // Check if it's an audio file
+    if (url.match(/\.(mp3|wav|ogg)$/i)) {
+      return (
+        <div className="mt-6 p-4 bg-black/40 rounded-xl backdrop-blur-md border border-white/10 w-full">
+          <audio controls className="w-full">
+            <source src={url} />
+            Votre navigateur ne supporte pas la lecture audio.
+          </audio>
+        </div>
+      );
+    }
+
+    return null;
+  };
+
+  const handleSendReply = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!profile || !replyMessage.trim() || selectedUserIndex === null) return;
+
+    const currentStatus = userStatuses[selectedUserIndex].statuses[currentStatusIndex];
+    const targetUserId = currentStatus.author_id;
+
+    if (targetUserId === profile.id) {
+      toast.error("Vous ne pouvez pas répondre à votre propre statut");
+      return;
+    }
+
+    setSendingReply(true);
+    try {
+      // 1. Find or create private room
+      const { data: existingParticipants } = await supabase
+        .from('chat_participants')
+        .select('room_id')
+        .eq('user_id', profile.id);
+
+      const roomIds = existingParticipants?.map(p => p.room_id) || [];
+      let roomId = null;
+
+      if (roomIds.length > 0) {
+        const { data: commonRooms } = await supabase
+          .from('chat_participants')
+          .select('room_id, room:chat_rooms(*)')
+          .in('room_id', roomIds)
+          .eq('user_id', targetUserId);
+
+        const privateRoom = commonRooms?.find(r => !(r.room as any).is_group);
+        if (privateRoom) {
+          roomId = privateRoom.room_id;
+        }
+      }
+
+      if (!roomId) {
+        // Create new room
+        const { data: newRoom, error: roomError } = await supabase
+          .from('chat_rooms')
+          .insert({ is_group: false })
+          .select()
+          .single();
+
+        if (roomError) throw roomError;
+        roomId = newRoom.id;
+
+        // Add participants
+        await supabase.from('chat_participants').insert([
+          { room_id: roomId, user_id: profile.id, role: 'admin' },
+          { room_id: roomId, user_id: targetUserId, role: 'member' }
+        ]);
+      }
+
+      // 2. Send message
+      const { error: msgError } = await supabase
+        .from('messages')
+        .insert({
+          room_id: roomId,
+          sender_id: profile.id,
+          content: `Replying to status: "${currentStatus.content.substring(0, 50)}${currentStatus.content.length > 50 ? '...' : ''}"\n\n${replyMessage.trim()}`
+        });
+
+      if (msgError) throw msgError;
+
+      setReplyMessage('');
+      toast.success('Réponse envoyée !');
+    } catch (error: any) {
+      toast.error(error.message);
+    } finally {
+      setSendingReply(false);
+    }
+  };
+
   if (loading) return null;
   if (userStatuses.length === 0 && !profile) return null;
 
   return (
     <div className="mb-8 space-y-3">
-      <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider px-1">Recent Updates</h3>
+      <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider px-1">Mises à jour récentes</h3>
       <div className="overflow-x-auto no-scrollbar py-2">
         <div className="flex gap-4 items-center">
         {/* Your Status (Add button style) */}
@@ -322,7 +462,7 @@ export function StatusTray({ refreshTrigger }: { refreshTrigger?: number }) {
                 </div>
               )}
             </div>
-            <span className="text-[10px] font-medium">Your Status</span>
+            <span className="text-[10px] font-medium">Votre statut</span>
           </div>
         )}
 
@@ -360,7 +500,7 @@ export function StatusTray({ refreshTrigger }: { refreshTrigger?: number }) {
               <div className="h-16 w-16 rounded-full border-2 border-dashed border-muted-foreground/30 flex items-center justify-center group-hover:border-primary group-hover:bg-primary/5 transition-all">
                 <Plus className="w-6 h-6 text-muted-foreground group-hover:text-primary" />
               </div>
-              <span className="text-[10px] font-medium text-muted-foreground group-hover:text-primary">Add Status</span>
+              <span className="text-[10px] font-medium text-muted-foreground group-hover:text-primary">Ajouter un statut</span>
             </div>
           )}
         </div>
@@ -405,7 +545,7 @@ export function StatusTray({ refreshTrigger }: { refreshTrigger?: number }) {
                   <div className="text-white">
                     <p className="font-bold text-sm">@{userStatuses[selectedUserIndex].user.username}</p>
                     <p className="text-[10px] opacity-70">
-                      {formatDistanceToNow(new Date(userStatuses[selectedUserIndex].statuses[currentStatusIndex].created_at), { addSuffix: true })}
+                      {formatDistanceToNow(new Date(userStatuses[selectedUserIndex].statuses[currentStatusIndex].created_at), { addSuffix: true, locale: fr })}
                     </p>
                   </div>
                 </div>
@@ -420,14 +560,7 @@ export function StatusTray({ refreshTrigger }: { refreshTrigger?: number }) {
                   <p className={`text-2xl md:text-3xl text-white font-medium leading-tight whitespace-pre-wrap ${userStatuses[selectedUserIndex].statuses[currentStatusIndex].font_family || ''}`}>
                     {userStatuses[selectedUserIndex].statuses[currentStatusIndex].content}
                   </p>
-                  {userStatuses[selectedUserIndex].statuses[currentStatusIndex].media_url && (
-                    <img 
-                      src={userStatuses[selectedUserIndex].statuses[currentStatusIndex].media_url!} 
-                      alt="Status media"
-                      className="mt-6 rounded-xl max-h-[50vh] object-contain mx-auto shadow-2xl"
-                      referrerPolicy="no-referrer"
-                    />
-                  )}
+                  {userStatuses[selectedUserIndex].statuses[currentStatusIndex].media_url && renderStatusMedia(userStatuses[selectedUserIndex].statuses[currentStatusIndex].media_url!)}
                 </div>
 
                 {/* Navigation Areas (Invisible overlay) */}
@@ -438,7 +571,32 @@ export function StatusTray({ refreshTrigger }: { refreshTrigger?: number }) {
               </div>
 
               {/* Footer Controls */}
-              <div className="absolute bottom-8 left-0 right-0 flex flex-col items-center gap-6 z-20">
+              <div className="absolute bottom-6 left-0 right-0 flex flex-col items-center gap-4 z-20 px-4">
+                {/* Reply Input (Only for others' status) */}
+                {profile && userStatuses[selectedUserIndex].user.id !== profile.id && (
+                  <form 
+                    onSubmit={handleSendReply}
+                    className="w-full max-w-sm flex items-center gap-2 bg-black/20 backdrop-blur-md p-1 pl-4 rounded-full border border-white/20"
+                  >
+                    <input 
+                      type="text"
+                      placeholder="Répondre au statut..."
+                      className="flex-1 bg-transparent border-none focus:ring-0 text-white text-sm placeholder:text-white/50"
+                      value={replyMessage}
+                      onChange={(e) => setReplyMessage(e.target.value)}
+                      onFocus={() => setIsPaused(true)}
+                      onBlur={() => setIsPaused(false)}
+                    />
+                    <button 
+                      type="submit"
+                      disabled={sendingReply || !replyMessage.trim()}
+                      className="bg-white text-black p-2 rounded-full disabled:opacity-50 transition-opacity"
+                    >
+                      {sendingReply ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                    </button>
+                  </form>
+                )}
+
                 {/* Viewers Button (Only for own status) */}
                 {profile && userStatuses[selectedUserIndex].user.id === profile.id && (
                   <button 
@@ -451,7 +609,7 @@ export function StatusTray({ refreshTrigger }: { refreshTrigger?: number }) {
                         {userStatuses[selectedUserIndex].statuses[currentStatusIndex].views_count || 0}
                       </span>
                     </div>
-                    <span className="text-[10px] uppercase tracking-widest font-bold">Views</span>
+                    <span className="text-[10px] uppercase tracking-widest font-bold">Vues</span>
                   </button>
                 )}
 
@@ -477,9 +635,9 @@ export function StatusTray({ refreshTrigger }: { refreshTrigger?: number }) {
                   >
                     <div className="w-12 h-1.5 bg-zinc-200 rounded-full mx-auto my-4 shrink-0" onClick={() => setShowViewers(false)} />
                     <div className="px-6 pb-4 flex items-center justify-between border-b shrink-0">
-                      <h4 className="font-bold text-lg">Viewed by</h4>
+                      <h4 className="font-bold text-lg">Vu par</h4>
                       <span className="bg-primary/10 text-primary px-3 py-1 rounded-full text-xs font-bold">
-                        {userStatuses[selectedUserIndex].statuses[currentStatusIndex].views_count || 0} people
+                        {userStatuses[selectedUserIndex].statuses[currentStatusIndex].views_count || 0} personnes
                       </span>
                     </div>
                     <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -494,7 +652,7 @@ export function StatusTray({ refreshTrigger }: { refreshTrigger?: number }) {
                               <div className="flex flex-col">
                                 <span className="font-bold text-sm">{view.viewer?.username}</span>
                                 <span className="text-[10px] text-muted-foreground">
-                                  {formatDistanceToNow(new Date(view.viewed_at), { addSuffix: true })}
+                                  {formatDistanceToNow(new Date(view.viewed_at), { addSuffix: true, locale: fr })}
                                 </span>
                               </div>
                             </div>
@@ -503,7 +661,7 @@ export function StatusTray({ refreshTrigger }: { refreshTrigger?: number }) {
                       ) : (
                         <div className="text-center py-12 text-muted-foreground">
                           <Eye className="w-8 h-8 mx-auto mb-2 opacity-20" />
-                          <p>No views yet</p>
+                          <p>Pas encore de vues</p>
                         </div>
                       )}
                     </div>

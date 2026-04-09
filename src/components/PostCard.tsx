@@ -8,46 +8,80 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Heart, MessageCircle, Share2, MoreVertical } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { fr } from 'date-fns/locale';
 import { toast } from 'sonner';
 
 export function PostCard({ post }: { post: Post, key?: React.Key }) {
   const { profile } = useAuth();
   const [likesCount, setLikesCount] = useState(post.likes_count || 0);
+  const [commentsCount, setCommentsCount] = useState(post.comments_count || 0);
   const [isLiked, setIsLiked] = useState(post.is_liked || false);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     setLikesCount(post.likes_count || 0);
+    setCommentsCount(post.comments_count || 0);
     setIsLiked(post.is_liked || false);
-  }, [post.likes_count, post.is_liked]);
+
+    // Subscribe to real-time updates for this specific post
+    const channel = supabase
+      .channel(`post_updates_${post.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'posts',
+          filter: `id=eq.${post.id}`
+        },
+        (payload) => {
+          const updatedPost = payload.new as Post;
+          if (updatedPost.likes_count !== undefined) {
+            setLikesCount(updatedPost.likes_count);
+          }
+          if (updatedPost.comments_count !== undefined) {
+            setCommentsCount(updatedPost.comments_count);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [post.id, post.likes_count, post.is_liked, post.comments_count]);
 
   const handleLike = async () => {
     if (!profile) {
-      toast.error('Please sign in to like posts');
+      toast.error('Veuillez vous connecter pour aimer les posts');
       return;
     }
 
     setLoading(true);
+    // Optimistic update
+    const wasLiked = isLiked;
+    setIsLiked(!wasLiked);
+    setLikesCount(prev => wasLiked ? Math.max(0, prev - 1) : prev + 1);
+
     try {
-      if (isLiked) {
+      if (wasLiked) {
         const { error } = await supabase
           .from('likes')
           .delete()
           .match({ user_id: profile.id, target_id: post.id, target_type: 'post' });
         
         if (error) throw error;
-        setLikesCount(prev => prev - 1);
-        setIsLiked(false);
       } else {
         const { error } = await supabase
           .from('likes')
           .insert({ user_id: profile.id, target_id: post.id, target_type: 'post' });
         
         if (error) throw error;
-        setLikesCount(prev => prev + 1);
-        setIsLiked(true);
       }
     } catch (error: any) {
+      // Revert optimistic update on error
+      setIsLiked(wasLiked);
+      setLikesCount(prev => wasLiked ? prev + 1 : Math.max(0, prev - 1));
       toast.error(error.message);
     } finally {
       setLoading(false);
@@ -57,7 +91,124 @@ export function PostCard({ post }: { post: Post, key?: React.Key }) {
   const handleShare = () => {
     const postUrl = `${window.location.origin}/#/blog/${post.id}`;
     navigator.clipboard.writeText(postUrl);
-    toast.success('Post link copied to clipboard!');
+    toast.success('Lien du post copié dans le presse-papier !');
+  };
+
+  const getYoutubeId = (url: string) => {
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+    const match = url.match(regExp);
+    return (match && match[2].length === 11) ? match[2] : null;
+  };
+
+  const renderMedia = (url: string) => {
+    const youtubeId = getYoutubeId(url);
+    if (youtubeId) {
+      return (
+        <div className="aspect-video w-full">
+          <iframe
+            width="100%"
+            height="100%"
+            src={`https://www.youtube.com/embed/${youtubeId}`}
+            title="YouTube video player"
+            frameBorder="0"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+          ></iframe>
+        </div>
+      );
+    }
+
+    // Spotify Support
+    if (url.includes('spotify.com')) {
+      let embedUrl = url;
+      if (!url.includes('/embed/')) {
+        // Convert regular link to embed link
+        embedUrl = url.replace('open.spotify.com/', 'open.spotify.com/embed/');
+      }
+      return (
+        <div className="w-full">
+          <iframe
+            src={embedUrl}
+            width="100%"
+            height="352"
+            frameBorder="0"
+            allowFullScreen
+            allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+            loading="lazy"
+            className="rounded-xl"
+          ></iframe>
+        </div>
+      );
+    }
+
+    // SoundCloud Support
+    if (url.includes('soundcloud.com')) {
+      let embedUrl = url;
+      if (!url.includes('w.soundcloud.com/player')) {
+        // Convert regular link to embed link
+        embedUrl = `https://w.soundcloud.com/player/?url=${encodeURIComponent(url)}&color=%23ff5500&auto_play=false&hide_related=false&show_comments=true&show_user=true&show_reposts=false&show_teaser=true&visual=true`;
+      }
+      return (
+        <div className="w-full">
+          <iframe
+            width="100%"
+            height="300"
+            scrolling="no"
+            frameBorder="no"
+            allow="autoplay"
+            src={embedUrl}
+            className="rounded-xl"
+          ></iframe>
+        </div>
+      );
+    }
+
+    // Check if it's an image
+    if (url.match(/\.(jpeg|jpg|gif|png|webp)$/i) || url.includes('supabase.co/storage/v1/object/public/posts/')) {
+      return (
+        <img 
+          src={url} 
+          alt="Post media" 
+          className="w-full h-auto object-cover max-h-[500px]" 
+          referrerPolicy="no-referrer" 
+        />
+      );
+    }
+
+    // Check if it's a video file
+    if (url.match(/\.(mp4|webm|ogg)$/i)) {
+      return (
+        <video controls className="w-full h-auto max-h-[500px]">
+          <source src={url} />
+          Votre navigateur ne supporte pas la lecture de vidéos.
+        </video>
+      );
+    }
+
+    // Check if it's an audio file
+    if (url.match(/\.(mp3|wav|ogg)$/i)) {
+      return (
+        <div className="p-4 bg-muted rounded-lg">
+          <audio controls className="w-full">
+            <source src={url} />
+            Votre navigateur ne supporte pas la lecture audio.
+          </audio>
+        </div>
+      );
+    }
+
+    // Fallback for unknown links
+    return (
+      <a 
+        href={url} 
+        target="_blank" 
+        rel="noopener noreferrer" 
+        className="flex items-center gap-2 p-4 bg-muted rounded-lg text-primary hover:underline text-sm"
+      >
+        <Share2 className="w-4 h-4" />
+        Lien externe : {url}
+      </a>
+    );
   };
 
   return (
@@ -75,7 +226,7 @@ export function PostCard({ post }: { post: Post, key?: React.Key }) {
               {post.author?.username}
             </Link>
             <p className="text-xs text-muted-foreground">
-              {formatDistanceToNow(new Date(post.created_at), { addSuffix: true })}
+              {formatDistanceToNow(new Date(post.created_at), { addSuffix: true, locale: fr })}
             </p>
           </div>
         </div>
@@ -86,12 +237,7 @@ export function PostCard({ post }: { post: Post, key?: React.Key }) {
       <CardContent className="pb-3">
         {post.post_type === 'blog' && (post.cover_image || post.media_url) && (
           <div className="mb-3 rounded-lg overflow-hidden border">
-            <img 
-              src={post.cover_image || post.media_url || ''} 
-              alt="Blog cover" 
-              className="w-full h-48 object-cover hover:scale-105 transition-transform duration-500" 
-              referrerPolicy="no-referrer" 
-            />
+            {renderMedia(post.cover_image || post.media_url || '')}
           </div>
         )}
         {post.post_type === 'blog' ? (
@@ -107,7 +253,7 @@ export function PostCard({ post }: { post: Post, key?: React.Key }) {
               <p className="whitespace-pre-wrap">{post.content}</p>
             </div>
             <Button variant="link" className="p-0 h-auto text-primary" render={<Link to={`/blog/${post.id}`} />} nativeButton={false}>
-              Read more...
+              Lire la suite...
             </Button>
             {post.tags && post.tags.length > 0 && (
               <div className="flex flex-wrap gap-2 pt-2">
@@ -128,12 +274,7 @@ export function PostCard({ post }: { post: Post, key?: React.Key }) {
             </div>
             {(post.cover_image || post.media_url) && (
               <div className="mt-3 rounded-lg overflow-hidden border">
-                <img 
-                  src={post.cover_image || post.media_url || ''} 
-                  alt="Post media" 
-                  className="w-full h-auto object-cover max-h-[500px]" 
-                  referrerPolicy="no-referrer" 
-                />
+                {renderMedia(post.cover_image || post.media_url || '')}
               </div>
             )}
           </>
@@ -153,12 +294,12 @@ export function PostCard({ post }: { post: Post, key?: React.Key }) {
           </Button>
           <Button variant="ghost" size="sm" className="gap-2">
             <MessageCircle className="w-4 h-4" />
-            <span className="text-xs font-medium">{post.comments_count || 0}</span>
+            <span className="text-xs font-medium">{commentsCount}</span>
           </Button>
         </div>
         <Button variant="ghost" size="sm" className="gap-2" onClick={handleShare}>
           <Share2 className="w-4 h-4" />
-          <span className="text-xs font-medium text-muted-foreground">Share</span>
+          <span className="text-xs font-medium text-muted-foreground">Partager</span>
         </Button>
       </CardFooter>
     </Card>

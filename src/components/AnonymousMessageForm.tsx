@@ -28,7 +28,7 @@ export function AnonymousMessageForm({ recipientId, recipientUsername }: { recip
       if (error) throw error;
 
       setContent('');
-      toast.success('Message sent anonymously!');
+      toast.success('Message envoyé anonymement !');
     } catch (error: any) {
       toast.error(error.message);
     } finally {
@@ -39,13 +39,13 @@ export function AnonymousMessageForm({ recipientId, recipientUsername }: { recip
   return (
     <Card className="w-full max-w-md mx-auto bg-gradient-to-br from-primary to-secondary text-white border-none shadow-xl">
       <CardHeader className="text-center">
-        <CardTitle className="text-2xl font-bold">Send an anonymous message to @{recipientUsername}</CardTitle>
-        <CardDescription className="text-white/80">They will never know it's you!</CardDescription>
+        <CardTitle className="text-2xl font-bold">Envoyez un message anonyme à @{recipientUsername}</CardTitle>
+        <CardDescription className="text-white/80">Ils ne sauront jamais que c'est vous !</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
           <Textarea
-            placeholder="Send me anonymous messages..."
+            placeholder="Envoyez-moi des messages anonymes..."
             className="bg-white/20 border-white/30 text-white placeholder:text-white/60 min-h-[120px] focus-visible:ring-white/50"
             value={content}
             onChange={(e) => setContent(e.target.value)}
@@ -56,16 +56,16 @@ export function AnonymousMessageForm({ recipientId, recipientUsername }: { recip
             className="w-full bg-white text-primary hover:bg-white/90 font-bold py-6 text-lg rounded-2xl shadow-lg transition-all hover:scale-[1.02] active:scale-[0.98]"
             disabled={loading || !content.trim()}
           >
-            {loading ? 'Sending...' : (
+            {loading ? 'Envoi...' : (
               <span className="flex items-center gap-2">
-                <Send className="w-5 h-5" /> Send Message
+                <Send className="w-5 h-5" /> Envoyer le message
               </span>
             )}
           </Button>
         </form>
       </CardContent>
       <CardFooter className="text-center justify-center pb-6">
-        <p className="text-xs text-white/60">Anonymity is guaranteed. No bullying allowed.</p>
+        <p className="text-xs text-white/60">L'anonymat est garanti. Le harcèlement n'est pas autorisé.</p>
       </CardFooter>
     </Card>
   );

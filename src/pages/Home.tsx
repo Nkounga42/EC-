@@ -49,7 +49,7 @@ export function Home() {
       if (error) throw error;
 
       let postsWithLikes = data || [];
-      if (profile) {
+      if (profile && postsWithLikes.length > 0) {
         const { data: userLikes } = await supabase
           .from('likes')
           .select('target_id')
@@ -120,14 +120,14 @@ export function Home() {
         <div className="hidden lg:block lg:col-span-3 space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Explore</CardTitle>
+              <CardTitle className="text-lg">Explorer</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <Button variant="ghost" className="w-full justify-start gap-3 text-primary">
-                <TrendingUp className="w-4 h-4" /> Trending
+                <TrendingUp className="w-4 h-4" /> Tendances
               </Button>
               <Button variant="ghost" className="w-full justify-start gap-3">
-                <Users className="w-4 h-4" /> Communities
+                <Users className="w-4 h-4" /> Communautés
               </Button>
               <Button variant="ghost" className="w-full justify-start gap-3">
                 <MessageCircle className="w-4 h-4" /> Discussions
@@ -138,10 +138,10 @@ export function Home() {
           {profile && (
             <Card className="bg-primary/5 border-primary/20">
               <CardHeader>
-                <CardTitle className="text-sm font-bold uppercase tracking-wider text-primary">Your Link</CardTitle>
+                <CardTitle className="text-sm font-bold uppercase tracking-wider text-primary">Votre Lien</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-xs text-muted-foreground mb-2">Share this link to get anonymous messages!</p>
+                <p className="text-xs text-muted-foreground mb-2">Partagez ce lien pour recevoir des messages anonymes !</p>
                 <div className="flex items-center gap-2">
                   <div className="bg-background border rounded p-2 text-[10px] font-mono break-all select-all cursor-pointer hover:bg-accent transition-colors flex-1">
                     {window.location.origin}/#/ngl/{profile.username}
@@ -151,7 +151,7 @@ export function Home() {
                     size="icon-xs" 
                     onClick={() => {
                       navigator.clipboard.writeText(`https://ais-pre-ba6w5osgwkenrhsrvhfga5-36828778751.europe-west2.run.app//#/ngl/${profile.username}`);
-                      toast.success('Link copied!');
+                      toast.success('Lien copié !');
                     }}
                   >
                     <Share2 className="w-3 h-3" />
@@ -169,7 +169,7 @@ export function Home() {
 
           <div className="flex flex-col gap-4 mb-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-bold tracking-tight">Feed</h2>
+              <h2 className="text-2xl font-bold tracking-tight">Fil d'actualité</h2>
             </div>
             <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-2">
               <Button 
@@ -178,7 +178,7 @@ export function Home() {
                 onClick={() => setFilter('all')}
                 className="rounded-full px-6 shrink-0"
               >
-                All
+                Tout
               </Button> 
               {categories.map(category => (
                 <Button 
@@ -206,7 +206,7 @@ export function Home() {
             </div>
           ) : (
             <Card className="p-12 text-center">
-              <p className="text-muted-foreground">No posts yet. Be the first to share something!</p>
+              <p className="text-muted-foreground">Aucun post pour le moment. Soyez le premier à partager quelque chose !</p>
             </Card>
           )}
         </div>
@@ -215,7 +215,7 @@ export function Home() {
         <div className="hidden lg:block lg:col-span-3 space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Who to follow</CardTitle>
+              <CardTitle className="text-lg">Qui suivre</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               {suggestedUsers.length > 0 ? (
@@ -232,12 +232,12 @@ export function Home() {
                       </div>
                     </Link>
                     <Button size="sm" variant="outline" className="h-8 px-3 text-xs rounded-full" render={<Link to={`/profile/${user.username}`} />} nativeButton={false}>
-                      View
+                      Voir
                     </Button>
                   </div>
                 ))
               ) : (
-                <p className="text-sm text-muted-foreground">No suggestions yet.</p>
+                <p className="text-sm text-muted-foreground">Aucune suggestion pour le moment.</p>
               )}
             </CardContent>
           </Card>

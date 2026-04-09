@@ -10,6 +10,7 @@ import { Loader2, Shield, Trash2, UserX, AlertTriangle, Eye } from 'lucide-react
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
+import { fr } from 'date-fns/locale';
 
 export function Admin() {
   const { profile } = useAuth();
@@ -47,7 +48,7 @@ export function Admin() {
       const { error } = await supabase.from('posts').delete().eq('id', id);
       if (error) throw error;
       setPosts(prev => prev.filter(p => p.id !== id));
-      toast.success('Post deleted by admin');
+      toast.success("Post supprimé par l'administrateur");
     } catch (error: any) {
       toast.error(error.message);
     }
@@ -57,8 +58,8 @@ export function Admin() {
     return (
       <div className="container mx-auto px-4 py-12 text-center">
         <AlertTriangle className="w-16 h-16 text-destructive mx-auto mb-4" />
-        <h1 className="text-3xl font-bold mb-2">Access Denied</h1>
-        <p className="text-muted-foreground">You do not have permission to view this page.</p>
+        <h1 className="text-3xl font-bold mb-2">Accès Refusé</h1>
+        <p className="text-muted-foreground">Vous n'avez pas la permission de voir cette page.</p>
       </div>
     );
   }
@@ -67,7 +68,7 @@ export function Admin() {
     <div className="container mx-auto px-4 py-8">
       <div className="flex items-center gap-3 mb-8">
         <Shield className="w-8 h-8 text-primary" />
-        <h1 className="text-3xl font-bold tracking-tight">Admin Control Panel</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Panneau de Contrôle Administrateur</h1>
       </div>
 
       {loading ? (
@@ -77,26 +78,26 @@ export function Admin() {
       ) : (
         <Tabs defaultValue="users">
           <TabsList className="grid w-full grid-cols-3 mb-8">
-            <TabsTrigger value="users">Users ({users.length})</TabsTrigger>
+            <TabsTrigger value="users">Utilisateurs ({users.length})</TabsTrigger>
             <TabsTrigger value="posts">Posts ({posts.length})</TabsTrigger>
-            <TabsTrigger value="ngl">NGL Messages ({messages.length})</TabsTrigger>
+            <TabsTrigger value="ngl">Messages NGL ({messages.length})</TabsTrigger>
           </TabsList>
 
           <TabsContent value="users">
             <Card>
               <CardHeader>
-                <CardTitle>User Management</CardTitle>
-                <CardDescription>Manage user accounts and roles.</CardDescription>
+                <CardTitle>Gestion des Utilisateurs</CardTitle>
+                <CardDescription>Gérer les comptes utilisateurs et les rôles.</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="relative overflow-x-auto">
                   <table className="w-full text-sm text-left">
                     <thead className="text-xs uppercase bg-muted">
                       <tr>
-                        <th className="px-4 py-3">Username</th>
+                        <th className="px-4 py-3">Nom d'utilisateur</th>
                         <th className="px-4 py-3">Email</th>
-                        <th className="px-4 py-3">Role</th>
-                        <th className="px-4 py-3">Joined</th>
+                        <th className="px-4 py-3">Rôle</th>
+                        <th className="px-4 py-3">Rejoint le</th>
                         <th className="px-4 py-3">Actions</th>
                       </tr>
                     </thead>
@@ -114,7 +115,7 @@ export function Admin() {
                               {user.role}
                             </Badge>
                           </td>
-                          <td className="px-4 py-3">{format(new Date(user.created_at), 'MMM d, yyyy')}</td>
+                          <td className="px-4 py-3">{format(new Date(user.created_at), 'd MMM yyyy', { locale: fr })}</td>
                           <td className="px-4 py-3">
                             <Button variant="ghost" size="sm" className="text-destructive">
                               <UserX className="w-4 h-4" />
@@ -142,7 +143,7 @@ export function Admin() {
                         <Badge variant="secondary">{post.post_type}</Badge>
                       </div>
                       <Button variant="destructive" size="sm" onClick={() => deletePost(post.id)}>
-                        <Trash2 className="w-4 h-4 mr-2" /> Delete
+                        <Trash2 className="w-4 h-4 mr-2" /> Supprimer
                       </Button>
                     </div>
                   </CardHeader>
@@ -158,17 +159,17 @@ export function Admin() {
           <TabsContent value="ngl">
             <Card>
               <CardHeader>
-                <CardTitle>Anonymous Message Audit</CardTitle>
-                <CardDescription>Admins can see sender identity for moderation purposes.</CardDescription>
+                <CardTitle>Audit des Messages Anonymes</CardTitle>
+                <CardDescription>Les administrateurs peuvent voir l'identité de l'expéditeur à des fins de modération.</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="relative overflow-x-auto">
                   <table className="w-full text-sm text-left">
                     <thead className="text-xs uppercase bg-muted">
                       <tr>
-                        <th className="px-4 py-3">Recipient</th>
-                        <th className="px-4 py-3">Content</th>
-                        <th className="px-4 py-3">Sender ID</th>
+                        <th className="px-4 py-3">Destinataire</th>
+                        <th className="px-4 py-3">Contenu</th>
+                        <th className="px-4 py-3">ID de l'expéditeur</th>
                         <th className="px-4 py-3">Date</th>
                       </tr>
                     </thead>
@@ -176,11 +177,11 @@ export function Admin() {
                       {messages.map((msg) => (
                         <tr key={msg.id} className="border-b">
                           <td className="px-4 py-3 font-medium">
-                            {users.find(u => u.id === msg.recipient_id)?.username || 'Unknown'}
+                            {users.find(u => u.id === msg.recipient_id)?.username || 'Inconnu'}
                           </td>
                           <td className="px-4 py-3 max-w-xs truncate">{msg.content}</td>
-                          <td className="px-4 py-3 font-mono text-[10px]">{msg.sender_id || 'Anonymous'}</td>
-                          <td className="px-4 py-3">{format(new Date(msg.created_at), 'MMM d, HH:mm')}</td>
+                          <td className="px-4 py-3 font-mono text-[10px]">{msg.sender_id || 'Anonyme'}</td>
+                          <td className="px-4 py-3">{format(new Date(msg.created_at), 'd MMM, HH:mm', { locale: fr })}</td>
                         </tr>
                       ))}
                     </tbody>

@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Loader2, Inbox, Trash2, Eye, MessageCircle, ShieldAlert, Share2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
+import { fr } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
 
 export function AnonymousInbox() {
@@ -62,7 +63,7 @@ export function AnonymousInbox() {
       
       if (error) throw error;
       setMessages(prev => prev.filter(m => m.id !== id));
-      toast.success('Message deleted');
+      toast.success('Message supprimé');
     } catch (error: any) {
       toast.error(error.message);
     }
@@ -74,11 +75,11 @@ export function AnonymousInbox() {
     <div className="container mx-auto px-4 py-8 max-w-4xl">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Anonymous Inbox</h1>
-          <p className="text-muted-foreground">Messages sent to you via your public link.</p>
+          <h1 className="text-3xl font-bold tracking-tight">Boîte de réception anonyme</h1>
+          <p className="text-muted-foreground">Messages qui vous ont été envoyés via votre lien public.</p>
         </div>
         <Badge variant="outline" className="text-lg py-1 px-3">
-          {messages.filter(m => !m.is_read).length} New
+          {messages.filter(m => !m.is_read).length} Nouveau
         </Badge>
       </div>
 
@@ -95,16 +96,16 @@ export function AnonymousInbox() {
                   <div className="flex items-center gap-2">
                     <Inbox className="w-4 h-4 text-muted-foreground" />
                     <span className="text-xs font-medium text-muted-foreground">
-                      {formatDistanceToNow(new Date(message.created_at), { addSuffix: true })}
+                      {formatDistanceToNow(new Date(message.created_at), { addSuffix: true, locale: fr })}
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
                     {profile.role === 'admin' && (
                       <Badge variant="destructive" className="gap-1">
-                        <ShieldAlert className="w-3 h-3" /> Admin View
+                        <ShieldAlert className="w-3 h-3" /> Vue Administrateur
                       </Badge>
                     )}
-                    {!message.is_read && <Badge>New</Badge>}
+                    {!message.is_read && <Badge>Nouveau</Badge>}
                   </div>
                 </div>
               </CardHeader>
@@ -113,15 +114,15 @@ export function AnonymousInbox() {
                 
                 {profile.role === 'admin' && (
                   <div className="mt-4 p-3 bg-destructive/10 rounded-lg border border-destructive/20 text-xs space-y-1">
-                    <p className="font-bold text-destructive">ADMIN TRACEABILITY:</p>
-                    <p><span className="font-semibold">Sender ID:</span> {message.sender_id || 'Anonymous'}</p>
+                    <p className="font-bold text-destructive">TRAÇABILITÉ ADMIN :</p>
+                    <p><span className="font-semibold">ID de l'expéditeur :</span> {message.sender_id || 'Anonyme'}</p>
                   </div>
                 )}
               </CardContent>
               <div className="px-6 pb-4 flex justify-end gap-2">
                 {!message.is_read && (
                   <Button variant="ghost" size="sm" onClick={() => markAsRead(message.id)}>
-                    <Eye className="w-4 h-4 mr-2" /> Mark as Read
+                    <Eye className="w-4 h-4 mr-2" /> Marquer comme lu
                   </Button>
                 )}
                 <Button 
@@ -130,14 +131,14 @@ export function AnonymousInbox() {
                   className="text-primary hover:text-primary hover:bg-primary/10"
                   onClick={() => {
                     // Navigate to home with a pre-filled post content
-                    const replyText = `Replying to an anonymous message: "${message.content}"\n\nMy reply: `;
+                    const replyText = `Réponse à un message anonyme : "${message.content}"\n\nMa réponse : `;
                     navigate('/', { state: { initialContent: replyText } });
                   }}
                 >
-                  <MessageCircle className="w-4 h-4 mr-2" /> Reply
+                  <MessageCircle className="w-4 h-4 mr-2" /> Répondre
                 </Button>
                 <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => deleteMessage(message.id)}>
-                  <Trash2 className="w-4 h-4 mr-2" /> Delete
+                  <Trash2 className="w-4 h-4 mr-2" /> Supprimer
                 </Button>
               </div>
             </Card>
@@ -149,9 +150,9 @@ export function AnonymousInbox() {
             <div className="mx-auto w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-4">
               <Inbox className="w-6 h-6 text-muted-foreground" />
             </div>
-            <CardTitle>No messages yet</CardTitle>
+            <CardTitle>Pas encore de messages</CardTitle>
             <CardDescription>
-              Share your link to start receiving anonymous messages!
+              Partagez votre lien pour commencer à recevoir des messages anonymes !
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -164,7 +165,7 @@ export function AnonymousInbox() {
                 size="icon" 
                 onClick={() => {
                   navigator.clipboard.writeText(`${window.location.origin}/#/ngl/${profile.username}`);
-                  toast.success('Link copied to clipboard!');
+                  toast.success('Lien copié dans le presse-papier !');
                 }}
               >
                 <Share2 className="w-4 h-4" />
